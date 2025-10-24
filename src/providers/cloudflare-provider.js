@@ -5,6 +5,9 @@
  * Uses Llama 3.2 11B Vision with JSON schema mode for structured output
  */
 
+import { resizeImage } from '../utils/image-resizer.js';
+import { shouldResize, estimateTokens } from '../config/model-limits.js';
+
 /**
  * Scan bookshelf image using Cloudflare Workers AI
  * @param {ArrayBuffer} imageData - Raw JPEG image data
@@ -23,10 +26,59 @@ export async function scanImageWithCloudflare(imageData, env, modelIdentifier) {
     }
 
     console.log(`[CloudflareProvider] Using model: ${modelName}`);
+    console.log(`[CloudflareProvider] Original image size: ${imageData.byteLength} bytes`);
+
+    // Check if image needs resizing based on model context window
+    const resizeDecision = shouldResize(imageData.byteLength, modelName);
+
+    console.log(`[CloudflareProvider] Resize decision:`, {
+        needsResize: resizeDecision.needsResize,
+        estimatedTokens: resizeDecision.estimatedTokens,
+        tokenLimit: resizeDecision.tokenLimit,
+        targetSize: resizeDecision.targetSize
+    });
+
+    let processedImage = imageData;
+
+    if (resizeDecision.needsResize) {
+        console.log(`[CloudflareProvider] Resizing image to ${resizeDecision.targetSize}px @ ${resizeDecision.quality} quality`);
+
+        try {
+            processedImage = await resizeImage(
+                imageData,
+                resizeDecision.targetSize,
+                resizeDecision.quality
+            );
+
+            console.log(`[CloudflareProvider] Resize complete: ${imageData.byteLength} → ${processedImage.byteLength} bytes (${Math.round(100 * processedImage.byteLength / imageData.byteLength)}%)`);
+
+            // Verify resize succeeded
+            const newTokens = estimateTokens(processedImage.byteLength);
+            console.log(`[CloudflareProvider] Estimated tokens after resize: ${newTokens} (limit: ${resizeDecision.tokenLimit})`);
+
+            if (newTokens > resizeDecision.tokenLimit) {
+                console.warn(`[CloudflareProvider] ⚠️ Resized image still exceeds token limit, proceeding anyway`);
+            }
+
+        } catch (error) {
+            console.error(`[CloudflareProvider] Resize failed, using original:`, error);
+            // Continue with original image (graceful fallback)
+        }
+    } else {
+        console.log(`[CloudflareProvider] Image size acceptable, no resize needed`);
+    }
+
+    // Log detailed image metadata
+    console.log(`[CloudflareProvider] === Image Processing Summary ===`);
+    console.log(`[CloudflareProvider] Model: ${modelName}`);
+    console.log(`[CloudflareProvider] Original: ${imageData.byteLength} bytes`);
+    console.log(`[CloudflareProvider] Processed: ${processedImage.byteLength} bytes`);
+    console.log(`[CloudflareProvider] Reduction: ${Math.round(100 * (1 - processedImage.byteLength / imageData.byteLength))}%`);
+    console.log(`[CloudflareProvider] Processing time so far: ${Date.now() - startTime}ms`);
 
     try {
-        // Convert ArrayBuffer to base64
-        const bytes = new Uint8Array(imageData);
+        // Convert processed ArrayBuffer to base64
+        const bytes = new Uint8Array(processedImage);
         let binary = '';
         for (let i = 0; i < bytes.byteLength; i++) {
             binary += String.fromCharCode(bytes[i]);
