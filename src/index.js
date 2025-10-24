@@ -182,11 +182,24 @@ export default {
         // Start AI scan in background (direct function call, NO RPC!)
         ctx.waitUntil(aiScanner.processBookshelfScan(jobId, imageData, request, env, doStub));
 
-        // Return 202 Accepted immediately
+        // Define stages metadata for iOS client (used for progress estimation)
+        const stages = [
+          { name: "Image Quality Analysis", typicalDuration: 3, progress: 0.1 },
+          { name: "AI Processing", typicalDuration: 25, progress: 0.5 },
+          { name: "Metadata Enrichment", typicalDuration: 12, progress: 1.0 }
+        ];
+
+        // Calculate estimated range based on total stage durations
+        const totalDuration = stages.reduce((sum, stage) => sum + stage.typicalDuration, 0);
+        const estimatedRange = [Math.floor(totalDuration * 0.8), Math.ceil(totalDuration * 1.2)];
+
+        // Return 202 Accepted immediately with stages metadata
         return new Response(JSON.stringify({
           jobId,
           status: 'started',
-          message: 'AI scan started. Connect to /ws/progress?jobId=' + jobId + ' for real-time updates.'
+          message: 'AI scan started. Connect to /ws/progress?jobId=' + jobId + ' for real-time updates.',
+          stages,
+          estimatedRange
         }), {
           status: 202,
           headers: {

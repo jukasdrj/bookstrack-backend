@@ -357,6 +357,18 @@ describe('API Worker Integration Tests', () => {
       expect(data.jobId).toBe(jobId);
       expect(data.status).toBe('started');
       expect(data.message).toContain('ws/progress');
+
+      // Verify stages metadata for iOS client
+      expect(data.stages).toBeInstanceOf(Array);
+      expect(data.stages.length).toBe(3);
+      expect(data.stages[0]).toHaveProperty('name');
+      expect(data.stages[0]).toHaveProperty('typicalDuration');
+      expect(data.stages[0]).toHaveProperty('progress');
+
+      // Verify estimatedRange
+      expect(data.estimatedRange).toBeInstanceOf(Array);
+      expect(data.estimatedRange.length).toBe(2);
+      expect(data.estimatedRange[0]).toBeLessThan(data.estimatedRange[1]);
     });
 
     it('should generate jobId if not provided', async () => {
