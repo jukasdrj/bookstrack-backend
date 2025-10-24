@@ -71,10 +71,11 @@ Guidelines:
                     ]
                 }],
                 generationConfig: {
-                    temperature: 0.1,
-                    topK: 1,
+                    temperature: 0.1,  // Factual output
+                    topK: 1,           // Most likely tokens
                     topP: 1,
-                    maxOutputTokens: 2048
+                    maxOutputTokens: 2048,  // Prevent truncation
+                    responseMimeType: 'application/json'  // Force JSON output
                 }
             })
         }
@@ -103,7 +104,8 @@ Guidelines:
         };
     }
 
-    // Extract JSON from markdown code block if present
+    // With responseMimeType='application/json', text should be clean JSON
+    // Keep markdown stripping as fallback for older API versions
     const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
     const jsonText = jsonMatch ? jsonMatch[1] : text;
 
