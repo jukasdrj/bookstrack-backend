@@ -19,12 +19,20 @@ export async function resizeImage(imageData, maxDimension, quality = 85) {
   console.log(`[ImageResizer] Starting resize: ${imageData.byteLength} bytes → ${maxDimension}px @ ${quality}%`);
 
   try {
-    // Create a temporary blob URL from the image data
-    const blob = new Blob([imageData], { type: 'image/jpeg' });
+    // Convert ArrayBuffer to base64 data URL
+    const bytes = new Uint8Array(imageData);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+    const dataURL = `data:image/jpeg;base64,${base64}`;
+
+    console.log(`[ImageResizer] Created data URL: ${dataURL.length} chars`);
 
     // Use Cloudflare's fetch with image transformation options
     // This resizes the image on Cloudflare's edge network
-    const response = await fetch(blob, {
+    const response = await fetch(dataURL, {
       cf: {
         image: {
           width: maxDimension,
