@@ -1,6 +1,7 @@
 import { ProgressWebSocketDO } from './durable-objects/progress-socket.js';
 import * as externalApis from './services/external-apis.js';
 import * as enrichment from './services/enrichment.js';
+import * as aiScanner from './services/ai-scanner.js';
 
 // Export the Durable Object class for Cloudflare Workers runtime
 export { ProgressWebSocketDO };
@@ -74,6 +75,75 @@ export default {
         console.error('Failed to start enrichment:', error);
         return new Response(JSON.stringify({
           error: 'Failed to start enrichment',
+          message: error.message
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // ========================================================================
+    // AI Scanner Endpoint
+    // ========================================================================
+
+    // POST /api/scan-bookshelf - AI bookshelf scanner with WebSocket progress
+    if (url.pathname === '/api/scan-bookshelf' && request.method === 'POST') {
+      try {
+        // Get or generate jobId
+        const jobId = url.searchParams.get('jobId') || crypto.randomUUID();
+
+        // Validate content type
+        const contentType = request.headers.get('content-type') || '';
+        if (!contentType.startsWith('image/')) {
+          return new Response(JSON.stringify({
+            error: 'Invalid content type: image/* required'
+          }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Read image data
+        const imageData = await request.arrayBuffer();
+
+        // Validate size (default 10MB max)
+        const maxSize = parseInt(env.MAX_SCAN_FILE_SIZE || '10485760');
+        if (imageData.byteLength > maxSize) {
+          return new Response(JSON.stringify({
+            error: 'Image too large',
+            maxSize: maxSize,
+            receivedSize: imageData.byteLength
+          }), {
+            status: 413,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Get DO stub for this job
+        const doId = env.PROGRESS_WEBSOCKET_DO.idFromName(jobId);
+        const doStub = env.PROGRESS_WEBSOCKET_DO.get(doId);
+
+        // Start AI scan in background (direct function call, NO RPC!)
+        ctx.waitUntil(aiScanner.processBookshelfScan(jobId, imageData, env, doStub));
+
+        // Return 202 Accepted immediately
+        return new Response(JSON.stringify({
+          jobId,
+          status: 'started',
+          message: 'AI scan started. Connect to /ws/progress?jobId=' + jobId + ' for real-time updates.'
+        }), {
+          status: 202,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*' // CORS for iOS app
+          }
+        });
+
+      } catch (error) {
+        console.error('Failed to start AI scan:', error);
+        return new Response(JSON.stringify({
+          error: 'Failed to start AI scan',
           message: error.message
         }), {
           status: 500,
@@ -218,6 +288,7 @@ export default {
         version: '1.0.0',
         endpoints: [
           'POST /api/enrichment/start - Start batch enrichment job',
+          'POST /api/scan-bookshelf?jobId={id} - AI bookshelf scanner (upload image with Content-Type: image/*)',
           'GET /ws/progress?jobId={id} - WebSocket progress updates',
           '/external/google-books?q={query}&maxResults={n}',
           '/external/google-books-isbn?isbn={isbn}',
