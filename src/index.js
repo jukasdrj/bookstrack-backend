@@ -85,6 +85,53 @@ export default {
       }
     }
 
+    // POST /api/enrichment/cancel - Cancel an in-flight enrichment job
+    if (url.pathname === '/api/enrichment/cancel' && request.method === 'POST') {
+      try {
+        const { jobId } = await request.json();
+
+        // Validate request
+        if (!jobId) {
+          return new Response(JSON.stringify({
+            error: 'Invalid request: jobId required'
+          }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Get DO stub for this job
+        const doId = env.PROGRESS_WEBSOCKET_DO.idFromName(jobId);
+        const doStub = env.PROGRESS_WEBSOCKET_DO.get(doId);
+
+        // Call cancelJob() on the Durable Object
+        const result = await doStub.cancelJob("Canceled by iOS client during library reset");
+
+        // Return success response
+        return new Response(JSON.stringify({
+          jobId,
+          status: 'canceled',
+          message: 'Enrichment job canceled successfully'
+        }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+
+      } catch (error) {
+        console.error('Failed to cancel enrichment:', error);
+        return new Response(JSON.stringify({
+          error: 'Failed to cancel enrichment',
+          message: error.message
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     // ========================================================================
     // AI Scanner Endpoint
     // ========================================================================
@@ -94,6 +141,12 @@ export default {
       try {
         // Get or generate jobId
         const jobId = url.searchParams.get('jobId') || crypto.randomUUID();
+
+        // DIAGNOSTIC: Log all incoming headers
+        console.log(`[Diagnostic Layer 1: Main Router] === Incoming Request Headers for job ${jobId} ===`);
+        const aiProviderHeader = request.headers.get('X-AI-Provider');
+        console.log(`[Diagnostic Layer 1: Main Router] X-AI-Provider header: ${aiProviderHeader ? aiProviderHeader : 'NOT FOUND'}`);
+        console.log(`[Diagnostic Layer 1: Main Router] All headers:`, Object.fromEntries(request.headers.entries()));
 
         // Validate content type
         const contentType = request.headers.get('content-type') || '';
@@ -380,6 +433,7 @@ export default {
           'GET /search/isbn?isbn={isbn}&maxResults={n} - ISBN search with caching (7 day TTL)',
           'POST /search/advanced - Advanced search (body: {bookTitle, authorName, maxResults})',
           'POST /api/enrichment/start - Start batch enrichment job',
+          'POST /api/enrichment/cancel - Cancel in-flight enrichment job (body: {jobId})',
           'POST /api/scan-bookshelf?jobId={id} - AI bookshelf scanner (upload image with Content-Type: image/*)',
           'GET /ws/progress?jobId={id} - WebSocket progress updates',
           '/external/google-books?q={query}&maxResults={n}',
