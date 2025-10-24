@@ -1,63 +1,46 @@
 /**
  * Image Resizer Utility
- * Resizes images using OffscreenCanvas API for Cloudflare Workers
+ * Resizes images using Cloudflare Images Transformations service
  * Preserves aspect ratio and uses high-quality interpolation for OCR
+ *
+ * Uses native Cloudflare edge service - no WASM needed!
  */
 
 /**
  * Resize image to fit within max dimension while preserving aspect ratio
- * Uses OffscreenCanvas API (available in Cloudflare Workers)
+ * Uses Cloudflare Images Transformations (native edge service)
  *
- * @param {ArrayBuffer} imageData - Original image data (JPEG/PNG)
+ * @param {ArrayBuffer} imageData - Original image data (JPEG)
  * @param {number} maxDimension - Maximum width or height
- * @param {number} quality - JPEG quality (0.0-1.0)
+ * @param {number} quality - JPEG quality (0-100)
  * @returns {Promise<ArrayBuffer>} Resized image data
  */
-export async function resizeImage(imageData, maxDimension, quality = 0.85) {
-  console.log(`[ImageResizer] Starting resize: ${imageData.byteLength} bytes → ${maxDimension}px @ ${quality}`);
+export async function resizeImage(imageData, maxDimension, quality = 85) {
+  console.log(`[ImageResizer] Starting resize: ${imageData.byteLength} bytes → ${maxDimension}px @ ${quality}%`);
 
   try {
-    // Convert ArrayBuffer to Blob
+    // Create a temporary blob URL from the image data
     const blob = new Blob([imageData], { type: 'image/jpeg' });
 
-    // Create ImageBitmap from blob
-    const imageBitmap = await createImageBitmap(blob);
-
-    const originalWidth = imageBitmap.width;
-    const originalHeight = imageBitmap.height;
-
-    // Calculate new dimensions preserving aspect ratio
-    const scale = Math.min(maxDimension / originalWidth, maxDimension / originalHeight);
-
-    // Don't upscale
-    if (scale >= 1) {
-      console.log(`[ImageResizer] Image already smaller than ${maxDimension}px, skipping resize`);
-      return imageData;
-    }
-
-    const newWidth = Math.floor(originalWidth * scale);
-    const newHeight = Math.floor(originalHeight * scale);
-
-    console.log(`[ImageResizer] Resizing ${originalWidth}x${originalHeight} → ${newWidth}x${newHeight}`);
-
-    // Create canvas and resize
-    const canvas = new OffscreenCanvas(newWidth, newHeight);
-    const ctx = canvas.getContext('2d');
-
-    // Use high-quality interpolation
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-
-    // Draw resized image
-    ctx.drawImage(imageBitmap, 0, 0, newWidth, newHeight);
-
-    // Convert to JPEG blob
-    const resizedBlob = await canvas.convertToBlob({
-      type: 'image/jpeg',
-      quality: quality
+    // Use Cloudflare's fetch with image transformation options
+    // This resizes the image on Cloudflare's edge network
+    const response = await fetch(blob, {
+      cf: {
+        image: {
+          width: maxDimension,
+          height: maxDimension,
+          fit: 'scale-down',  // Preserve aspect ratio, never upscale
+          quality: quality,    // JPEG quality
+          format: 'jpeg'       // Output format
+        }
+      }
     });
 
-    const resizedData = await resizedBlob.arrayBuffer();
+    if (!response.ok) {
+      throw new Error(`Resize failed: ${response.status} ${response.statusText}`);
+    }
+
+    const resizedData = await response.arrayBuffer();
 
     console.log(`[ImageResizer] Resize complete: ${imageData.byteLength} → ${resizedData.byteLength} bytes (${Math.round(100 * resizedData.byteLength / imageData.byteLength)}%)`);
 
@@ -65,22 +48,20 @@ export async function resizeImage(imageData, maxDimension, quality = 0.85) {
 
   } catch (error) {
     console.error('[ImageResizer] Resize failed:', error);
-    // Return original on failure
+    // Return original on failure (graceful degradation)
     return imageData;
   }
 }
 
 /**
- * Get image dimensions without fully decoding
+ * Get image dimensions (not implemented - not needed for current use case)
  *
  * @param {ArrayBuffer} imageData - Image data
  * @returns {Promise<{width: number, height: number}>}
  */
 export async function getImageDimensions(imageData) {
-  const blob = new Blob([imageData], { type: 'image/jpeg' });
-  const imageBitmap = await createImageBitmap(blob);
-  return {
-    width: imageBitmap.width,
-    height: imageBitmap.height
-  };
+  // Not implemented - Cloudflare Images doesn't provide dimension extraction
+  // Would need a WASM library for this, but not required for our use case
+  console.warn('[ImageResizer] getImageDimensions not implemented');
+  return { width: 0, height: 0 };
 }

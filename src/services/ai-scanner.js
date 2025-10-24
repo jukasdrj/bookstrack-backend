@@ -22,6 +22,8 @@ export async function processBookshelfScan(jobId, imageData, request, env, doStu
   const startTime = Date.now();
 
   try {
+    console.log(`[AI Scanner] Starting scan for job ${jobId}, image size: ${imageData.byteLength} bytes`);
+
     // Stage 1: Image quality analysis (10% progress)
     await doStub.pushProgress({
       progress: 0.1,
@@ -30,6 +32,7 @@ export async function processBookshelfScan(jobId, imageData, request, env, doStu
       currentStatus: 'Analyzing image quality...',
       jobId
     });
+    console.log(`[AI Scanner] Progress pushed: 10% (image quality analysis)`);
 
     // Stage 2: Provider selection and AI processing
     await doStub.pushProgress({
@@ -50,27 +53,37 @@ export async function processBookshelfScan(jobId, imageData, request, env, doStu
     let scanResult;
     let modelIdentifier;
 
-    switch (providerParam) {
-      case 'cf-llava-1.5-7b':
-        modelIdentifier = '@cf/llava-hf/llava-1.5-7b-hf';
-        scanResult = await scanImageWithCloudflare(imageData, env, modelIdentifier);
-        break;
+    try {
+      switch (providerParam) {
+        case 'cf-llava-1.5-7b':
+          console.log('[AI Scanner] Using Cloudflare LLaVA 1.5');
+          modelIdentifier = '@cf/llava-hf/llava-1.5-7b-hf';
+          scanResult = await scanImageWithCloudflare(imageData, env, modelIdentifier);
+          break;
 
-      case 'cf-uform-gen2-qwen-500m':
-        modelIdentifier = '@cf/unum/uform-gen2-qwen-500m';
-        scanResult = await scanImageWithCloudflare(imageData, env, modelIdentifier);
-        break;
+        case 'cf-uform-gen2-qwen-500m':
+          console.log('[AI Scanner] Using Cloudflare UForm Gen2 Qwen');
+          modelIdentifier = '@cf/unum/uform-gen2-qwen-500m';
+          scanResult = await scanImageWithCloudflare(imageData, env, modelIdentifier);
+          break;
 
-      case 'cf-llama-3.2-11b-vision':
-        modelIdentifier = '@cf/meta/llama-3.2-11b-vision-instruct';
-        scanResult = await scanImageWithCloudflare(imageData, env, modelIdentifier);
-        break;
+        case 'cf-llama-3.2-11b-vision':
+          console.log('[AI Scanner] Using Cloudflare Llama 3.2 Vision');
+          modelIdentifier = '@cf/meta/llama-3.2-11b-vision-instruct';
+          scanResult = await scanImageWithCloudflare(imageData, env, modelIdentifier);
+          break;
 
-      case 'gemini-flash':
-      default:
-        // Default to Gemini for backward compatibility
-        scanResult = await scanImageWithGemini(imageData, env);
-        break;
+        case 'gemini-flash':
+        default:
+          console.log('[AI Scanner] Using Gemini 2.0 Flash (default)');
+          // Default to Gemini for backward compatibility
+          scanResult = await scanImageWithGemini(imageData, env);
+          break;
+      }
+      console.log('[AI Scanner] AI processing complete');
+    } catch (aiError) {
+      console.error('[AI Scanner] AI processing failed:', aiError.message);
+      throw aiError;
     }
 
     const detectedBooks = scanResult.books;

@@ -11,21 +11,21 @@ export const MODEL_CONFIGS = {
   // Cloudflare Workers AI Models
   '@cf/meta/llama-3.2-11b-vision-instruct': {
     maxImageSize: 1536,      // 128K tokens → ~1.5MB max
-    quality: 0.85,
+    quality: 85,             // JPEG quality (0-100)
     contextWindow: 128000,
     avgProcessingTime: 12000, // 12 seconds
     provider: 'cloudflare'
   },
   '@cf/llava-hf/llava-1.5-7b-hf': {
     maxImageSize: 1024,      // 4K tokens → ~1MB max
-    quality: 0.80,
+    quality: 80,             // JPEG quality (0-100)
     contextWindow: 4096,
     avgProcessingTime: 8000,
     provider: 'cloudflare'
   },
   '@cf/unum/uform-gen2-qwen-500m': {
     maxImageSize: 768,       // 8K tokens → ~750KB max
-    quality: 0.75,
+    quality: 75,             // JPEG quality (0-100)
     contextWindow: 8192,
     avgProcessingTime: 5000,
     provider: 'cloudflare'
@@ -34,7 +34,7 @@ export const MODEL_CONFIGS = {
   // Gemini Models (for reference, no resizing needed)
   'gemini-2.0-flash-exp': {
     maxImageSize: 3072,      // 2M tokens → ~10MB max
-    quality: 0.90,
+    quality: 90,             // JPEG quality (0-100)
     contextWindow: 2000000,
     avgProcessingTime: 35000,
     provider: 'gemini'

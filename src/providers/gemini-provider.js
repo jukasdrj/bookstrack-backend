@@ -14,12 +14,21 @@
 export async function scanImageWithGemini(imageData, env) {
     const startTime = Date.now();
 
+    // DIAGNOSTIC: Log secret binding status
+    console.log('[GeminiProvider] DIAGNOSTIC: Checking GEMINI_API_KEY binding...');
+    console.log('[GeminiProvider] env.GEMINI_API_KEY exists:', !!env.GEMINI_API_KEY);
+    console.log('[GeminiProvider] env.GEMINI_API_KEY.get exists:', !!env.GEMINI_API_KEY?.get);
+
     // Get API key
     const apiKey = env.GEMINI_API_KEY?.get
         ? await env.GEMINI_API_KEY.get()
         : env.GEMINI_API_KEY;
 
+    console.log('[GeminiProvider] DIAGNOSTIC: API key retrieved:', !!apiKey);
+    console.log('[GeminiProvider] DIAGNOSTIC: API key length:', apiKey?.length || 0);
+
     if (!apiKey) {
+        console.error('[GeminiProvider] ERROR: GEMINI_API_KEY not configured or empty');
         throw new Error('GEMINI_API_KEY not configured');
     }
 
@@ -83,10 +92,14 @@ Guidelines:
 
     if (!response.ok) {
         const errorText = await response.text();
+        console.error(`[GeminiProvider] Gemini API error: ${response.status}`);
+        console.error(`[GeminiProvider] Error details:`, errorText);
         throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
+    console.log('[GeminiProvider] Gemini API response OK, parsing JSON...');
     const geminiData = await response.json();
+    console.log('[GeminiProvider] Response parsed, checking for candidates...');
 
     // Parse response
     const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
