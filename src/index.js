@@ -127,7 +127,7 @@ export default {
         const doStub = env.PROGRESS_WEBSOCKET_DO.get(doId);
 
         // Start AI scan in background (direct function call, NO RPC!)
-        ctx.waitUntil(aiScanner.processBookshelfScan(jobId, imageData, env, doStub));
+        ctx.waitUntil(aiScanner.processBookshelfScan(jobId, imageData, request, env, doStub));
 
         // Return 202 Accepted immediately
         return new Response(JSON.stringify({
