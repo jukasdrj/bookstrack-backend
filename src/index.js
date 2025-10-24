@@ -142,6 +142,39 @@ export default {
       return handleBatchScan(request, env, ctx);
     }
 
+    // POST /api/scan-bookshelf/cancel - Cancel batch processing
+    if (url.pathname === '/api/scan-bookshelf/cancel' && request.method === 'POST') {
+      try {
+        const { jobId } = await request.json();
+
+        if (!jobId) {
+          return new Response(JSON.stringify({ error: 'jobId required' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Call Durable Object to cancel batch
+        const doId = env.PROGRESS_WEBSOCKET_DO.idFromName(jobId);
+        const doStub = env.PROGRESS_WEBSOCKET_DO.get(doId);
+        const result = await doStub.cancelBatch();
+
+        return new Response(JSON.stringify(result), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (error) {
+        console.error('Cancel batch error:', error);
+        return new Response(JSON.stringify({ error: 'Failed to cancel batch' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     // POST /api/scan-bookshelf - AI bookshelf scanner with WebSocket progress
     if (url.pathname === '/api/scan-bookshelf' && request.method === 'POST') {
       try {

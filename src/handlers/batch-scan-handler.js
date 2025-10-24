@@ -161,11 +161,28 @@ async function processBatchPhotos(jobId, images, env, doStub) {
       }
 
       // Check if job canceled
-      const isCanceledResponse = await doStub.fetch(`http://do/is-canceled`);
-      const isCanceled = await isCanceledResponse.json();
+      const isCanceled = await doStub.isBatchCanceled();
       if (isCanceled.canceled) {
-        console.log(`Job ${jobId} canceled, stopping at photo ${i}`);
-        break;
+        console.log(`Job ${jobId} canceled at photo ${i}, returning partial results`);
+
+        // Return partial results from completed photos
+        const partialBooks = deduplicateBooks(allBooks);
+
+        await doStub.completeBatch({
+          status: 'canceled',
+          totalBooks: partialBooks.length,
+          photoResults: photoResults.concat(
+            // Mark remaining photos as skipped
+            uploadResults.slice(i).map((upload, idx) => ({
+              index: i + idx,
+              status: 'skipped',
+              booksFound: 0
+            }))
+          ),
+          books: partialBooks
+        });
+
+        return; // Exit early with partial results
       }
 
       // Update progress: processing this photo
