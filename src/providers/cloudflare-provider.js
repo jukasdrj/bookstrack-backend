@@ -9,15 +9,20 @@
  * Scan bookshelf image using Cloudflare Workers AI
  * @param {ArrayBuffer} imageData - Raw JPEG image data
  * @param {Object} env - Worker environment with AI binding
+ * @param {string} modelIdentifier - Specific Cloudflare model ID (e.g., '@cf/llava-hf/llava-1.5-7b-hf')
  * @returns {Promise<Object>} Scan result with books array and suggestions
  */
-export async function scanImageWithCloudflare(imageData, env) {
+export async function scanImageWithCloudflare(imageData, env, modelIdentifier) {
     const startTime = Date.now();
-    const modelName = '@cf/meta/llama-3.2-11b-vision-instruct';
+
+    // Fallback to LLaVA if no model specified
+    const modelName = modelIdentifier || '@cf/llava-hf/llava-1.5-7b-hf';
 
     if (!env.AI) {
         throw new Error('AI binding not configured');
     }
+
+    console.log(`[CloudflareProvider] Using model: ${modelName}`);
 
     try {
         // Convert ArrayBuffer to base64
@@ -122,7 +127,11 @@ After extracting all readable books, analyze the image for quality issues:
 
 Only include suggestions if you detect actual issues. If the image quality is good, return an empty suggestions array.`;
 
-        // Call Workers AI
+        // Model-specific optimization parameters
+        const maxTokens = 2048;  // Prevent truncated JSON
+        const temperature = 0.1; // Factual output, less creativity
+
+        // Call Workers AI with dynamic model
         const result = await env.AI.run(modelName, {
             messages: [{
                 role: 'user',
@@ -141,7 +150,10 @@ Only include suggestions if you detect actual issues. If the image quality is go
             response_format: {
                 type: 'json_object',
                 schema: schema
-            }
+            },
+            // Optimization parameters
+            max_tokens: maxTokens,
+            temperature: temperature
         });
 
         // Parse response (Workers AI may return string or object)
@@ -152,14 +164,14 @@ Only include suggestions if you detect actual issues. If the image quality is go
             suggestions: scanResult.suggestions || [],
             metadata: {
                 provider: 'cloudflare',
-                model: modelName,
+                model: modelName,  // Include actual model used
                 timestamp: new Date().toISOString(),
                 processingTimeMs: Date.now() - startTime
             }
         };
 
     } catch (error) {
-        console.error('[CloudflareProvider] Scan failed:', error);
+        console.error(`[CloudflareProvider] Scan failed with model ${modelName}:`, error);
         throw error;
     }
 }
