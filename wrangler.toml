@@ -1,6 +1,98 @@
 name = "api-worker"
 main = "src/index.js"
-compatibility_date = "2024-01-01"
+compatibility_date = "2024-10-01"
 workers_dev = true
 
-# We'll populate bindings in Phase 2
+# Compatibility flags (from all workers)
+compatibility_flags = ["nodejs_compat"]
+
+# Environment variables merged from all workers
+[vars]
+# Cache configuration (from books-api-proxy)
+CACHE_HOT_TTL = "7200"         # 2 hours
+CACHE_COLD_TTL = "1209600"     # 14 days
+MAX_RESULTS_DEFAULT = "40"
+RATE_LIMIT_MS = "50"
+CONCURRENCY_LIMIT = "10"
+AGGRESSIVE_CACHING = "true"
+
+# Logging configuration (merged from all workers)
+LOG_LEVEL = "DEBUG"
+ENABLE_PERFORMANCE_LOGGING = "true"
+ENABLE_CACHE_ANALYTICS = "true"
+ENABLE_PROVIDER_METRICS = "true"
+ENABLE_RATE_LIMIT_TRACKING = "true"
+STRUCTURED_LOGGING = "true"
+
+# External API configuration
+OPENLIBRARY_BASE_URL = "https://openlibrary.org"
+USER_AGENT = "BooksTracker/1.0 (nerd@ooheynerds.com) ExternalAPIsWorker/1.0.0"
+
+# AI configuration (from bookshelf-ai-worker)
+AI_PROVIDER = "gemini"  # or "cloudflare"
+MAX_IMAGE_SIZE_MB = "10"
+REQUEST_TIMEOUT_MS = "50000"
+CONFIDENCE_THRESHOLD = "0.7"
+MAX_SCAN_FILE_SIZE = "10485760"
+
+# KV Namespaces (consolidated from books-api-proxy and external-apis-worker)
+[[kv_namespaces]]
+binding = "CACHE"
+id = "b9cade63b6db48fd80c109a013f38fdb"
+
+# Note: SCAN_JOBS KV namespace (5d4b89403bbb4be1949b1ee30df5353e) is intentionally
+# excluded - we're eliminating the polling system in favor of WebSocket-only
+
+# R2 Buckets (from books-api-proxy)
+[[r2_buckets]]
+binding = "API_CACHE_COLD"
+bucket_name = "personal-library-data"
+
+[[r2_buckets]]
+binding = "LIBRARY_DATA"
+bucket_name = "personal-library-data"
+
+# Workers AI binding (from books-api-proxy and bookshelf-ai-worker)
+[ai]
+binding = "AI"
+
+# Durable Objects - SINGLE binding, NO service bindings!
+[[durable_objects.bindings]]
+name = "PROGRESS_WEBSOCKET_DO"
+class_name = "ProgressWebSocketDO"
+
+# Durable Object migrations
+[[migrations]]
+tag = "v1"
+new_classes = ["ProgressWebSocketDO"]
+
+# Analytics Engine (merged from books-api-proxy and bookshelf-ai-worker)
+[[analytics_engine_datasets]]
+binding = "PERFORMANCE_ANALYTICS"
+dataset = "books_api_performance"
+
+[[analytics_engine_datasets]]
+binding = "CACHE_ANALYTICS"
+dataset = "books_api_cache_metrics"
+
+[[analytics_engine_datasets]]
+binding = "PROVIDER_ANALYTICS"
+dataset = "books_api_provider_performance"
+
+[[analytics_engine_datasets]]
+binding = "AI_ANALYTICS"
+dataset = "bookshelf_ai_performance"
+
+# Observability (from books-api-proxy and bookshelf-ai-worker)
+[observability]
+enabled = true
+head_sampling_rate = 1.0
+
+# Resource limits (from books-api-proxy and bookshelf-ai-worker)
+[limits]
+cpu_ms = 30000
+memory_mb = 256
+
+# Placement (from books-api-proxy and bookshelf-ai-worker)
+[placement]
+mode = "smart"
