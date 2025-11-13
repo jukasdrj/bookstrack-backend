@@ -5,6 +5,9 @@ export default defineConfig({
     // Use globals for describe, it, expect without importing
     globals: true,
 
+    // Global setup file for test utilities and mocks
+    setupFiles: ['./tests/setup.js'],
+
     // Node environment for Cloudflare Workers testing
     environment: 'node',
 
