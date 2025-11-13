@@ -14,21 +14,53 @@ import type { ErrorResponse } from '../types/responses.js';
  * Type-safe HTTP status codes
  * Union of literal types enforces compile-time safety
  */
-export type HttpStatus = 400 | 404 | 500 | 502 | 503;
+export type HttpStatus = 400 | 401 | 404 | 413 | 500 | 502 | 503;
 
 /**
  * Centralized error code to HTTP status mapping
  *
  * Mapping rationale:
- * - INVALID_QUERY, INVALID_ISBN: 400 (Bad Request) - client input errors
- * - NOT_FOUND: 404 (Not Found) - requested resource doesn't exist
- * - INTERNAL_ERROR: 500 (Internal Server Error) - unexpected server failures
- * - PROVIDER_ERROR: Handled by providerErrorStatus() for nuanced cases
+ * - 400 (Bad Request): Client input errors - INVALID_*, MISSING_*, BATCH_TOO_LARGE, etc.
+ * - 401 (Unauthorized): Authentication errors - UNAUTHORIZED, INVALID_TOKEN, TOKEN_EXPIRED
+ * - 404 (Not Found): Resource doesn't exist - NOT_FOUND, JOB_NOT_FOUND
+ * - 413 (Payload Too Large): File/content size errors - FILE_TOO_LARGE
+ * - 500 (Internal Server Error): Unexpected server failures - INTERNAL_ERROR, *_FAILED
+ * - PROVIDER_ERROR: Handled by providerErrorStatus() for nuanced cases (502/503)
  */
 const ERROR_STATUS_MAP = {
-  INVALID_QUERY: 400,
+  // Authentication & Authorization (401)
+  UNAUTHORIZED: 401,
+  INVALID_TOKEN: 401,
+  TOKEN_EXPIRED: 401,
+  
+  // Request Validation (400)
+  INVALID_REQUEST: 400,
   INVALID_ISBN: 400,
+  INVALID_QUERY: 400,
+  INVALID_PARAMETER: 400,
+  MISSING_PARAMETER: 400,
+  INVALID_FILE_TYPE: 400,
+  INVALID_CONTENT: 400,
+  BATCH_TOO_LARGE: 400,
+  EMPTY_BATCH: 400,
+  
+  // File Size (413)
+  FILE_TOO_LARGE: 413,
+  
+  // Resources (404)
   NOT_FOUND: 404,
+  JOB_NOT_FOUND: 404,
+  
+  // Rate Limiting (503) - Temporary service unavailability
+  RATE_LIMIT_EXCEEDED: 503,
+  
+  // Provider Issues (503) - Temporary service unavailability  
+  PROVIDER_UNAVAILABLE: 503,
+  PROVIDER_TIMEOUT: 503,
+  
+  // Processing Errors (500)
+  PROCESSING_FAILED: 500,
+  ENRICHMENT_FAILED: 500,
   INTERNAL_ERROR: 500,
 } as const satisfies Record<Exclude<ApiErrorCode, 'PROVIDER_ERROR'>, HttpStatus>;
 
