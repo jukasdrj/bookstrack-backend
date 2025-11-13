@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { normalizeISBN } from '../../src/utils/normalization.js'
+import { normalizeISBN, normalizeTitle, normalizeAuthor, normalizeImageURL } from '../../src/utils/normalization.js'
 
 /**
  * ISBN Validation - Tests for isValidISBN() function
@@ -97,6 +97,80 @@ describe('ISBN Normalization', () => {
   it('should handle whitespace trimming', () => {
     expect(normalizeISBN('  9780439708180  ')).toBe('9780439708180')
     expect(normalizeISBN('  978-0-439-70818-0  ')).toBe('9780439708180')
+  })
+})
+
+/**
+ * Title Normalization - Tests for normalizeTitle() utility
+ * Normalizes titles for cache key generation and search matching
+ */
+describe('Title Normalization', () => {
+  it('should lowercase and trim title', () => {
+    expect(normalizeTitle('Harry Potter')).toBe('harry potter')
+    expect(normalizeTitle('  The Great Gatsby  ')).toBe('great gatsby')
+  })
+
+  it('should remove leading articles (the, a, an)', () => {
+    expect(normalizeTitle('The Hobbit')).toBe('hobbit')
+    expect(normalizeTitle('A Tale of Two Cities')).toBe('tale of two cities')
+    expect(normalizeTitle('An Unexpected Journey')).toBe('unexpected journey')
+  })
+
+  it('should remove punctuation', () => {
+    expect(normalizeTitle('Harry Potter: The Boy Who Lived')).toBe('harry potter the boy who lived')
+    expect(normalizeTitle("Harry's Adventure!")).toBe('harrys adventure')
+    expect(normalizeTitle('Book #1')).toBe('book 1')
+  })
+
+  it('should preserve numbers and spaces', () => {
+    expect(normalizeTitle('1984')).toBe('1984')
+    expect(normalizeTitle('The 7 Habits')).toBe('7 habits')
+  })
+})
+
+/**
+ * Author Normalization - Tests for normalizeAuthor() utility
+ * Normalizes author names for cache matching
+ */
+describe('Author Normalization', () => {
+  it('should lowercase and trim author name', () => {
+    expect(normalizeAuthor('J.K. Rowling')).toBe('j.k. rowling')
+    expect(normalizeAuthor('  Stephen King  ')).toBe('stephen king')
+  })
+
+  it('should preserve punctuation in author names', () => {
+    expect(normalizeAuthor("O'Brien")).toBe("o'brien")
+    expect(normalizeAuthor('García Márquez')).toBe('garcía márquez')
+  })
+})
+
+/**
+ * Image URL Normalization - Tests for normalizeImageURL() utility
+ * Normalizes image URLs for cache key generation
+ */
+describe('Image URL Normalization', () => {
+  it('should remove query parameters', () => {
+    const url = 'https://example.com/image.jpg?zoom=1&source=gbs_api'
+    const normalized = normalizeImageURL(url)
+    expect(normalized).toBe('https://example.com/image.jpg')
+  })
+
+  it('should force HTTPS protocol', () => {
+    const url = 'http://example.com/image.jpg'
+    const normalized = normalizeImageURL(url)
+    expect(normalized).toBe('https://example.com/image.jpg')
+  })
+
+  it('should trim whitespace', () => {
+    const url = '  https://example.com/image.jpg  '
+    const normalized = normalizeImageURL(url)
+    expect(normalized).toBe('https://example.com/image.jpg')
+  })
+
+  it('should handle invalid URLs gracefully', () => {
+    const invalidUrl = 'not-a-valid-url'
+    const normalized = normalizeImageURL(invalidUrl)
+    expect(normalized).toBe('not-a-valid-url')
   })
 })
 

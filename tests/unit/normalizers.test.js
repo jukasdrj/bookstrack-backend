@@ -12,17 +12,21 @@ import {
   mockOpenLibrarySearchResponse,
   mockISBNdbResponse
 } from '../mocks/providers.js'
+import { normalizeGoogleBooksToWork, normalizeGoogleBooksToEdition } from '../../src/services/normalizers/google-books.js'
+import { normalizeOpenLibraryToWork, normalizeOpenLibraryToEdition, normalizeOpenLibraryToAuthor } from '../../src/services/normalizers/openlibrary.js'
+import { normalizeISBNdbToWork, normalizeISBNdbToEdition, normalizeISBNdbToAuthor } from '../../src/services/normalizers/isbndb.js'
 
 /**
  * Test the canonical DTO structure that all normalizers should produce
  */
 function validateWorkDTO(work) {
-  // Required fields
+  // Required fields for WorkDTO
   expect(work).toHaveProperty('title')
-  expect(work).toHaveProperty('isbn')
   expect(work).toHaveProperty('primaryProvider')
+  expect(work).toHaveProperty('synthetic')
   expect(typeof work.title).toBe('string')
   expect(work.title.length).toBeGreaterThan(0)
+  expect(typeof work.synthetic).toBe('boolean')
 }
 
 function validateEditionDTO(edition) {
@@ -53,27 +57,27 @@ describe('Google Books Normalizer', () => {
     expect(googleBooksVolume.volumeInfo).toBeDefined()
     expect(googleBooksVolume.volumeInfo.title).toBe("Harry Potter and the Philosopher's Stone")
 
-    // Normalized work should have required fields from volumeInfo
-    const normalized = {
-      title: googleBooksVolume.volumeInfo.title,
-      isbn: '9780439708180',
-      primaryProvider: 'google_books',
-      publicationYear: 1998
-    }
+    // Use actual normalizer function
+    const normalized = normalizeGoogleBooksToWork(googleBooksVolume)
+    
+    // Validate required fields
+    expect(normalized.title).toBe("Harry Potter and the Philosopher's Stone")
+    expect(normalized.primaryProvider).toBe('google-books')
+    expect(normalized.synthetic).toBe(false)
+    expect(normalized.firstPublicationYear).toBe(1998)
+    expect(normalized.coverImageURL).toBeDefined()
     validateWorkDTO(normalized)
   })
 
   it('should normalize Google Books edition to EditionDTO', () => {
-    const volumeInfo = googleBooksVolume.volumeInfo
-    const isbn = volumeInfo.industryIdentifiers
-      .find(id => id.type === 'ISBN_13')?.identifier
-
-    const normalized = {
-      isbn: isbn,
-      publisher: volumeInfo.publisher,
-      pageCount: volumeInfo.pageCount,
-      format: 'Hardcover'
-    }
+    // Use actual normalizer function
+    const normalized = normalizeGoogleBooksToEdition(googleBooksVolume)
+    
+    // Validate required fields
+    expect(normalized.isbn).toBeDefined()
+    expect(normalized.publisher).toBe('Bloomsbury')
+    expect(normalized.pageCount).toBe(309)
+    expect(normalized.format).toBe('Hardcover')
     validateEditionDTO(normalized)
   })
 
@@ -93,22 +97,21 @@ describe('Google Books Normalizer', () => {
   })
 
   it('should normalize ISBN formats (10/13 digit)', () => {
-    const industryIds = googleBooksVolume.volumeInfo.industryIdentifiers
-    expect(industryIds).toBeDefined()
-    expect(Array.isArray(industryIds)).toBe(true)
-
-    const isbn10 = industryIds.find(id => id.type === 'ISBN_10')
-    const isbn13 = industryIds.find(id => id.type === 'ISBN_13')
-
-    expect(isbn10).toBeDefined()
-    expect(isbn13).toBeDefined()
-    expect(isbn10.identifier).toBe('0439708180')
-    expect(isbn13.identifier).toBe('9780439708180')
+    const normalized = normalizeGoogleBooksToEdition(googleBooksVolume)
+    
+    // Check that both ISBN-10 and ISBN-13 are extracted
+    expect(normalized.isbns).toBeDefined()
+    expect(Array.isArray(normalized.isbns)).toBe(true)
+    expect(normalized.isbns.length).toBeGreaterThan(0)
+    
+    // Should have ISBN-13 as primary
+    expect(normalized.isbn).toBe('9780439708180')
   })
 
   it('should handle missing optional fields gracefully', () => {
     // Simulate a minimal volume with missing optional fields
     const minimalVolume = {
+      id: 'minimal-id',
       volumeInfo: {
         title: 'Minimal Book',
         authors: ['Author Name']
@@ -116,11 +119,12 @@ describe('Google Books Normalizer', () => {
     }
 
     // Normalizer should not crash and should use defaults
-    expect(minimalVolume.volumeInfo.title).toBeDefined()
-    expect(minimalVolume.volumeInfo.authors).toBeDefined()
-    // Missing pageCount, publisher, etc should not cause errors
-    expect(minimalVolume.volumeInfo.pageCount).toBeUndefined()
-    expect(minimalVolume.volumeInfo.publisher).toBeUndefined()
+    const normalized = normalizeGoogleBooksToWork(minimalVolume)
+    expect(normalized.title).toBe('Minimal Book')
+    expect(normalized.primaryProvider).toBe('google-books')
+    expect(normalized.synthetic).toBe(false)
+    // Missing fields should be undefined, not cause errors
+    expect(normalized.description).toBeUndefined()
   })
 })
 
@@ -137,31 +141,35 @@ describe('OpenLibrary Normalizer', () => {
     expect(olDoc.author_name).toBeDefined()
     expect(Array.isArray(olDoc.author_name)).toBe(true)
 
-    const normalized = {
-      title: olDoc.title,
-      isbn: olDoc.isbn[0],
-      primaryProvider: 'openlibrary',
-      publicationYear: olDoc.first_publish_year
-    }
+    // Use actual normalizer function
+    const normalized = normalizeOpenLibraryToWork(olDoc)
+    
+    expect(normalized.title).toBe("Harry Potter and the Philosopher's Stone")
+    expect(normalized.primaryProvider).toBe('openlibrary')
+    expect(normalized.synthetic).toBe(false)
+    expect(normalized.firstPublicationYear).toBe(1998)
     validateWorkDTO(normalized)
   })
 
   it('should normalize OpenLibrary edition to EditionDTO', () => {
+    // Use actual normalizer function
+    const normalized = normalizeOpenLibraryToEdition(olDoc)
+    
     // OpenLibrary search results include edition info
-    const normalized = {
-      isbn: olDoc.isbn[0],
-      publisher: olDoc.publisher[0],
-      format: 'Paperback' // Default format
-    }
+    expect(normalized.isbn).toBeDefined()
+    expect(normalized.publisher).toBeDefined()
+    expect(normalized.format).toBeDefined() // Should have a default format
     validateEditionDTO(normalized)
   })
 
   it('should normalize OpenLibrary author to AuthorDTO', () => {
     const authorName = olDoc.author_name[0]
-    const normalized = {
-      name: authorName,
-      gender: 'Unknown'
-    }
+    
+    // Use actual normalizer function
+    const normalized = normalizeOpenLibraryToAuthor(authorName)
+    
+    expect(normalized.name).toBe('J.K. Rowling')
+    expect(normalized.gender).toBe('Unknown')
     validateAuthorDTO(normalized)
   })
 
@@ -178,13 +186,16 @@ describe('OpenLibrary Normalizer', () => {
   it('should handle missing edition fields', () => {
     // Simulate incomplete document
     const incompleteDoc = {
+      key: '/works/OL123W',
       title: 'Incomplete Book',
       author_name: ['Author']
       // Missing publisher, isbn, etc
     }
-    expect(incompleteDoc.title).toBeDefined()
-    expect(incompleteDoc.publisher).toBeUndefined()
-    expect(incompleteDoc.isbn).toBeUndefined()
+    
+    // Should not crash
+    const normalized = normalizeOpenLibraryToWork(incompleteDoc)
+    expect(normalized.title).toBe('Incomplete Book')
+    expect(normalized.primaryProvider).toBe('openlibrary')
   })
 })
 
@@ -200,12 +211,12 @@ describe('ISBNdb Normalizer', () => {
     expect(isbndbRecord.title).toBe("Harry Potter and the Philosopher's Stone")
     expect(isbndbRecord.isbn).toBe('9780439708180')
 
-    const normalized = {
-      title: isbndbRecord.title,
-      isbn: isbndbRecord.isbn,
-      primaryProvider: 'isbndb',
-      authors: isbndbRecord.authors
-    }
+    // Use actual normalizer function
+    const normalized = normalizeISBNdbToWork(isbndbRecord)
+    
+    expect(normalized.title).toBe("Harry Potter and the Philosopher's Stone")
+    expect(normalized.primaryProvider).toBe('isbndb')
+    expect(normalized.synthetic).toBe(false)
     validateWorkDTO(normalized)
   })
 
@@ -223,18 +234,23 @@ describe('ISBNdb Normalizer', () => {
       authors: ['Author']
       // Missing image field
     }
-    expect(noCoverRecord.image).toBeUndefined()
-    // Normalizer should handle this without throwing
-    expect(() => {
-      const coverUrl = noCoverRecord.image || null
-      expect(coverUrl).toBeNull()
-    }).not.toThrow()
+    
+    // Use actual normalizer function - should not crash
+    const normalized = normalizeISBNdbToWork(noCoverRecord)
+    expect(normalized.title).toBe('No Cover Book')
+    expect(normalized.primaryProvider).toBe('isbndb')
   })
 
   it('should extract author data from ISBNdb', () => {
     expect(isbndbRecord.authors).toBeDefined()
     expect(Array.isArray(isbndbRecord.authors)).toBe(true)
     expect(isbndbRecord.authors[0]).toBe('J.K. Rowling')
+    
+    // Use actual normalizer function
+    const normalized = normalizeISBNdbToAuthor(isbndbRecord.authors[0])
+    expect(normalized.name).toBe('J.K. Rowling')
+    expect(normalized.gender).toBe('Unknown')
+    validateAuthorDTO(normalized)
   })
 })
 
