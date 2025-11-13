@@ -24,6 +24,7 @@ import { handleImageProxy } from './handlers/image-proxy.js';
 import { checkRateLimit } from './middleware/rate-limiter.js';
 import { validateRequestSize, validateResourceSize } from './middleware/size-validator.js';
 import { getCorsHeaders } from './middleware/cors.js';
+import { ErrorResponses } from './utils/error-responses.ts';
 
 // Export the Durable Object class for Cloudflare Workers runtime
 export { ProgressWebSocketDO };
@@ -53,7 +54,14 @@ export default {
     if (url.pathname === '/ws/progress') {
       const jobId = url.searchParams.get('jobId');
       if (!jobId) {
-        return new Response('Missing jobId parameter', { status: 400 });
+        const errorResponse = ErrorResponses.missingParameter('jobId');
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
+        });
       }
 
       // Get Durable Object instance for this specific jobId
@@ -74,13 +82,14 @@ export default {
         const { jobId, oldToken } = await request.json();
 
         if (!jobId || !oldToken) {
-          return new Response(JSON.stringify({
-            error: 'Invalid request: jobId and oldToken required'
-          }), {
-            status: 400,
+          const errorResponse = ErrorResponses.invalidRequest(
+            'Invalid request: jobId and oldToken required'
+          );
+          return new Response(errorResponse.body, {
+            status: errorResponse.status,
             headers: {
-              ...getCorsHeaders(request),
-              'Content-Type': 'application/json'
+              ...errorResponse.headers,
+              ...getCorsHeaders(request)
             }
           });
         }
@@ -93,13 +102,12 @@ export default {
         const result = await doStub.refreshAuthToken(oldToken);
 
         if (result.error) {
-          return new Response(JSON.stringify({
-            error: result.error
-          }), {
-            status: 401,
+          const errorResponse = ErrorResponses.invalidToken(result.error);
+          return new Response(errorResponse.body, {
+            status: errorResponse.status,
             headers: {
-              ...getCorsHeaders(request),
-              'Content-Type': 'application/json'
+              ...errorResponse.headers,
+              ...getCorsHeaders(request)
             }
           });
         }
@@ -119,11 +127,9 @@ export default {
 
       } catch (error) {
         console.error('Failed to refresh token:', error);
-        return new Response(JSON.stringify({
-          error: 'Failed to refresh token',
-          message: error.message
-        }), {
-          status: 500,
+        const errorResponse = ErrorResponses.processingFailed('refresh token', error);
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
           headers: {
             ...getCorsHeaders(request),
             'Content-Type': 'application/json'
@@ -138,13 +144,12 @@ export default {
         const jobId = url.pathname.split('/').pop();
 
         if (!jobId) {
-          return new Response(JSON.stringify({
-            error: 'Invalid request: jobId required'
-          }), {
-            status: 400,
+          const errorResponse = ErrorResponses.invalidRequest('Invalid request: jobId required');
+          return new Response(errorResponse.body, {
+            status: errorResponse.status,
             headers: {
-              ...getCorsHeaders(request),
-              'Content-Type': 'application/json'
+              ...errorResponse.headers,
+              ...getCorsHeaders(request)
             }
           });
         }
@@ -153,9 +158,13 @@ export default {
         const authHeader = request.headers.get('Authorization');
         const providedToken = authHeader?.replace('Bearer ', '');
         if (!providedToken) {
-          return new Response(JSON.stringify({ error: 'Missing authorization token' }), {
-            status: 401,
-            headers: { ...getCorsHeaders(request), 'Content-Type': 'application/json' }
+          const errorResponse = ErrorResponses.unauthorized('Missing authorization token');
+          return new Response(errorResponse.body, {
+            status: errorResponse.status,
+            headers: {
+              ...errorResponse.headers,
+              ...getCorsHeaders(request)
+            }
           });
         }
 
@@ -167,13 +176,12 @@ export default {
         const result = await doStub.getJobStateAndAuth();
 
         if (!result) {
-          return new Response(JSON.stringify({
-            error: 'Job not found or state not initialized'
-          }), {
-            status: 404,
+          const errorResponse = ErrorResponses.jobNotFound(jobId);
+          return new Response(errorResponse.body, {
+            status: errorResponse.status,
             headers: {
-              ...getCorsHeaders(request),
-              'Content-Type': 'application/json'
+              ...errorResponse.headers,
+              ...getCorsHeaders(request)
             }
           });
         }
@@ -182,9 +190,13 @@ export default {
 
         // Validate token
         if (!authToken || providedToken !== authToken || Date.now() > authTokenExpiration) {
-          return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
-            status: 401,
-            headers: { ...getCorsHeaders(request), 'Content-Type': 'application/json' }
+          const errorResponse = ErrorResponses.invalidToken('Invalid or expired token');
+          return new Response(errorResponse.body, {
+            status: errorResponse.status,
+            headers: {
+              ...errorResponse.headers,
+              ...getCorsHeaders(request)
+            }
           });
         }
 
@@ -199,14 +211,12 @@ export default {
 
       } catch (error) {
         console.error('Failed to get job state:', error);
-        return new Response(JSON.stringify({
-          error: 'Failed to get job state',
-          message: error.message
-        }), {
-          status: 500,
+        const errorResponse = ErrorResponses.processingFailed('get job state', error);
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
           headers: {
-            ...getCorsHeaders(request),
-            'Content-Type': 'application/json'
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
           }
         });
       }
@@ -231,20 +241,26 @@ export default {
 
         // Validate request
         if (!jobId || !workIds || !Array.isArray(workIds)) {
-          return new Response(JSON.stringify({
-            error: 'Invalid request: jobId and workIds (array) required'
-          }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' }
+          const errorResponse = ErrorResponses.invalidRequest(
+            'Invalid request: jobId and workIds (array) required'
+          );
+          return new Response(errorResponse.body, {
+            status: errorResponse.status,
+            headers: {
+              ...errorResponse.headers,
+              ...getCorsHeaders(request)
+            }
           });
         }
 
         if (workIds.length === 0) {
-          return new Response(JSON.stringify({
-            error: 'Invalid request: workIds array cannot be empty'
-          }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' }
+          const errorResponse = ErrorResponses.emptyBatch('workIds');
+          return new Response(errorResponse.body, {
+            status: errorResponse.status,
+            headers: {
+              ...errorResponse.headers,
+              ...getCorsHeaders(request)
+            }
           });
         }
 
@@ -261,12 +277,13 @@ export default {
 
       } catch (error) {
         console.error('Failed to start enrichment:', error);
-        return new Response(JSON.stringify({
-          error: 'Failed to start enrichment',
-          message: error.message
-        }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.processingFailed('start enrichment', error);
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
     }
@@ -278,11 +295,13 @@ export default {
 
         // Validate request
         if (!jobId) {
-          return new Response(JSON.stringify({
-            error: 'Invalid request: jobId required'
-          }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' }
+          const errorResponse = ErrorResponses.missingParameter('jobId');
+          return new Response(errorResponse.body, {
+            status: errorResponse.status,
+            headers: {
+              ...errorResponse.headers,
+              ...getCorsHeaders(request)
+            }
           });
         }
 
@@ -308,12 +327,13 @@ export default {
 
       } catch (error) {
         console.error('Failed to cancel enrichment:', error);
-        return new Response(JSON.stringify({
-          error: 'Failed to cancel enrichment',
-          message: error.message
-        }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.processingFailed('cancel enrichment', error);
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
     }
@@ -337,9 +357,13 @@ export default {
         const { jobId } = await request.json();
 
         if (!jobId) {
-          return new Response(JSON.stringify({ error: 'jobId required' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' }
+          const errorResponse = ErrorResponses.missingParameter('jobId');
+          return new Response(errorResponse.body, {
+            status: errorResponse.status,
+            headers: {
+              ...errorResponse.headers,
+              ...getCorsHeaders(request)
+            }
           });
         }
 
@@ -357,9 +381,13 @@ export default {
         });
       } catch (error) {
         console.error('Cancel batch error:', error);
-        return new Response(JSON.stringify({ error: 'Failed to cancel batch' }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.processingFailed('cancel batch', error);
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
     }
@@ -564,9 +592,13 @@ export default {
     if (url.pathname === '/search/title') {
       const query = url.searchParams.get('q');
       if (!query) {
-        return new Response(JSON.stringify({ error: 'Missing query parameter "q"' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.missingParameter('q');
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
 
@@ -590,9 +622,13 @@ export default {
     if (url.pathname === '/search/isbn') {
       const isbn = url.searchParams.get('isbn');
       if (!isbn) {
-        return new Response(JSON.stringify({ error: 'Missing ISBN parameter' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.missingParameter('isbn');
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
 
@@ -616,9 +652,13 @@ export default {
     if (url.pathname === '/search/author') {
       const authorName = url.searchParams.get('q');
       if (!authorName) {
-        return new Response(JSON.stringify({ error: 'Missing query parameter "q"' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.missingParameter('q');
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
 
@@ -630,33 +670,48 @@ export default {
 
       // Validate parameters
       if (limit < 1 || limit > 100) {
-        return new Response(JSON.stringify({
-          error: 'Invalid limit parameter',
-          message: 'Limit must be between 1 and 100'
-        }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.invalidParameter(
+          'limit',
+          'Limit must be between 1 and 100',
+          { value: limit, min: 1, max: 100 }
+        );
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
 
       if (offset < 0) {
-        return new Response(JSON.stringify({
-          error: 'Invalid offset parameter',
-          message: 'Offset must be >= 0'
-        }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.invalidParameter(
+          'offset',
+          'Offset must be >= 0',
+          { value: offset, min: 0 }
+        );
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
 
       const validSortOptions = ['publicationYear', 'publicationYearAsc', 'title', 'popularity'];
       if (!validSortOptions.includes(sortBy)) {
-        return new Response(JSON.stringify({
-          error: 'Invalid sortBy parameter',
-          message: `sortBy must be one of: ${validSortOptions.join(', ')}`
-        }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.invalidParameter(
+          'sortBy',
+          `sortBy must be one of: ${validSortOptions.join(', ')}`,
+          { value: sortBy, validOptions: validSortOptions }
+        );
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
 
@@ -747,12 +802,13 @@ export default {
 
       } catch (error) {
         console.error('Advanced search failed:', error);
-        return new Response(JSON.stringify({
-          error: 'Advanced search failed',
-          message: error.message
-        }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.processingFailed('perform advanced search', error);
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
     }
@@ -765,9 +821,13 @@ export default {
     if (url.pathname === '/external/google-books') {
       const query = url.searchParams.get('q');
       if (!query) {
-        return new Response(JSON.stringify({ error: 'Missing query parameter' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.missingParameter('q');
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
 
@@ -775,7 +835,10 @@ export default {
       const result = await externalApis.searchGoogleBooks(query, { maxResults }, env);
 
       return new Response(JSON.stringify(result), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          ...getCorsHeaders(request),
+          'Content-Type': 'application/json'
+        }
       });
     }
 
@@ -783,16 +846,23 @@ export default {
     if (url.pathname === '/external/google-books-isbn') {
       const isbn = url.searchParams.get('isbn');
       if (!isbn) {
-        return new Response(JSON.stringify({ error: 'Missing isbn parameter' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.missingParameter('isbn');
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
 
       const result = await externalApis.searchGoogleBooksByISBN(isbn, env);
 
       return new Response(JSON.stringify(result), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          ...getCorsHeaders(request),
+          'Content-Type': 'application/json'
+        }
       });
     }
 
@@ -800,9 +870,13 @@ export default {
     if (url.pathname === '/external/openlibrary') {
       const query = url.searchParams.get('q');
       if (!query) {
-        return new Response(JSON.stringify({ error: 'Missing query parameter' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.missingParameter('q');
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
 
@@ -810,7 +884,10 @@ export default {
       const result = await externalApis.searchOpenLibrary(query, { maxResults }, env);
 
       return new Response(JSON.stringify(result), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          ...getCorsHeaders(request),
+          'Content-Type': 'application/json'
+        }
       });
     }
 
@@ -818,16 +895,23 @@ export default {
     if (url.pathname === '/external/openlibrary-author') {
       const author = url.searchParams.get('author');
       if (!author) {
-        return new Response(JSON.stringify({ error: 'Missing author parameter' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.missingParameter('author');
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
 
       const result = await externalApis.getOpenLibraryAuthorWorks(author, env);
 
       return new Response(JSON.stringify(result), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          ...getCorsHeaders(request),
+          'Content-Type': 'application/json'
+        }
       });
     }
 
@@ -835,9 +919,13 @@ export default {
     if (url.pathname === '/external/isbndb') {
       const title = url.searchParams.get('title');
       if (!title) {
-        return new Response(JSON.stringify({ error: 'Missing title parameter' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.missingParameter('title');
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
 
@@ -845,7 +933,10 @@ export default {
       const result = await externalApis.searchISBNdb(title, author, env);
 
       return new Response(JSON.stringify(result), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          ...getCorsHeaders(request),
+          'Content-Type': 'application/json'
+        }
       });
     }
 
@@ -855,9 +946,13 @@ export default {
       const author = url.searchParams.get('author');
 
       if (!title || !author) {
-        return new Response(JSON.stringify({ error: 'Missing title or author parameter' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.invalidRequest('Missing title or author parameter');
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
 
@@ -872,16 +967,23 @@ export default {
     if (url.pathname === '/external/isbndb-isbn') {
       const isbn = url.searchParams.get('isbn');
       if (!isbn) {
-        return new Response(JSON.stringify({ error: 'Missing isbn parameter' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.missingParameter('isbn');
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
 
       const result = await externalApis.getISBNdbBookByISBN(isbn, env);
 
       return new Response(JSON.stringify(result), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          ...getCorsHeaders(request),
+          'Content-Type': 'application/json'
+        }
       });
     }
 
@@ -904,9 +1006,13 @@ export default {
         });
       } catch (error) {
         console.error('Test init-batch failed:', error);
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.internalError(error.message, error);
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
     }
@@ -916,9 +1022,13 @@ export default {
       try {
         const jobId = url.searchParams.get('jobId');
         if (!jobId) {
-          return new Response(JSON.stringify({ error: 'Missing jobId parameter' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' }
+          const errorResponse = ErrorResponses.missingParameter('jobId');
+          return new Response(errorResponse.body, {
+            status: errorResponse.status,
+            headers: {
+              ...errorResponse.headers,
+              ...getCorsHeaders(request)
+            }
           });
         }
 
@@ -928,9 +1038,13 @@ export default {
         const state = await doStub.getState();
 
         if (!state || Object.keys(state).length === 0) {
-          return new Response(JSON.stringify({ error: 'Job not found' }), {
-            status: 404,
-            headers: { 'Content-Type': 'application/json' }
+          const errorResponse = ErrorResponses.jobNotFound(jobId);
+          return new Response(errorResponse.body, {
+            status: errorResponse.status,
+            headers: {
+              ...errorResponse.headers,
+              ...getCorsHeaders(request)
+            }
           });
         }
 
@@ -940,9 +1054,13 @@ export default {
         });
       } catch (error) {
         console.error('Test get-state failed:', error);
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.internalError(error.message, error);
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
     }
@@ -962,9 +1080,13 @@ export default {
         });
       } catch (error) {
         console.error('Test update-photo failed:', error);
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.internalError(error.message, error);
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
     }
@@ -984,9 +1106,13 @@ export default {
         });
       } catch (error) {
         console.error('Test complete-batch failed:', error);
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.internalError(error.message, error);
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
     }
@@ -996,9 +1122,13 @@ export default {
       try {
         const jobId = url.searchParams.get('jobId');
         if (!jobId) {
-          return new Response(JSON.stringify({ error: 'Missing jobId parameter' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' }
+          const errorResponse = ErrorResponses.missingParameter('jobId');
+          return new Response(errorResponse.body, {
+            status: errorResponse.status,
+            headers: {
+              ...errorResponse.headers,
+              ...getCorsHeaders(request)
+            }
           });
         }
 
@@ -1013,9 +1143,13 @@ export default {
         });
       } catch (error) {
         console.error('Test is-canceled failed:', error);
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.internalError(error.message, error);
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
     }
@@ -1035,9 +1169,13 @@ export default {
         });
       } catch (error) {
         console.error('Test cancel-batch failed:', error);
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' }
+        const errorResponse = ErrorResponses.internalError(error.message, error);
+        return new Response(errorResponse.body, {
+          status: errorResponse.status,
+          headers: {
+            ...errorResponse.headers,
+            ...getCorsHeaders(request)
+          }
         });
       }
     }
