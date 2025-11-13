@@ -108,6 +108,46 @@ Every DTO includes:
 - ✅ Token usage logging and metadata
 - ✅ Stop sequences for cleaner termination
 
+## Rate Limiting
+
+All API endpoints are protected by a token bucket rate limiter to prevent abuse and control costs.
+
+**Limits:**
+- **10 requests per minute** per IP address
+- Refill rate: 1 token every 6 seconds
+- Window: 60 seconds (sliding window)
+
+**Response Headers:**
+```http
+X-RateLimit-Limit: 10
+X-RateLimit-Remaining: 7
+X-RateLimit-Reset: 1699564920
+Retry-After: 42
+```
+
+**Rate Limit Exceeded Response (429):**
+```json
+{
+  "error": "Rate limit exceeded. Please try again in 42 seconds.",
+  "code": "RATE_LIMIT_EXCEEDED",
+  "details": {
+    "retryAfter": 42,
+    "clientIP": "203.0.11...",
+    "requestsUsed": 10,
+    "requestsLimit": 10
+  }
+}
+```
+
+**Best Practices:**
+- Monitor `X-RateLimit-Remaining` header
+- Implement exponential backoff on 429 responses
+- Use `Retry-After` header value for next retry
+- Cache responses client-side to reduce API calls
+- Batch enrichment requests when possible
+
+**Source:** `src/middleware/rate-limiter.js`
+
 ## Testing
 
 ### Health Check
@@ -142,6 +182,111 @@ curl -X POST https://api.oooefam.net/v1/enrichment/batch \
   -H "Content-Type: application/json" \
   -d '{"jobId":"test-123","workIds":["9780439708180"]}'
 ```
+
+### WebSocket Message Types
+
+**Endpoint:** `GET /ws/progress?jobId={uuid}&token={auth_token}`
+
+All WebSocket messages follow a unified schema (v1.0.0) with discriminated unions for type safety:
+
+```typescript
+interface WebSocketMessage {
+  type: MessageType;        // "job_started" | "job_progress" | "job_complete" | "error" | "ping" | "pong"
+  jobId: string;            // Client correlation ID
+  pipeline: PipelineType;   // "batch_enrichment" | "csv_import" | "ai_scan"
+  timestamp: number;        // Server time (ms since epoch)
+  version: string;          // Schema version ("1.0.0")
+  payload: MessagePayload;  // Type-specific data
+}
+```
+
+#### Message Types
+
+**1. Job Started**
+```json
+{
+  "type": "job_started",
+  "jobId": "550e8400-e29b-41d4-a716-446655440000",
+  "pipeline": "batch_enrichment",
+  "timestamp": 1699564800000,
+  "version": "1.0.0",
+  "payload": {
+    "type": "job_started",
+    "totalCount": 20,
+    "estimatedDuration": 120
+  }
+}
+```
+
+**2. Job Progress**
+```json
+{
+  "type": "job_progress",
+  "jobId": "550e8400-e29b-41d4-a716-446655440000",
+  "pipeline": "batch_enrichment",
+  "timestamp": 1699564830000,
+  "version": "1.0.0",
+  "payload": {
+    "type": "job_progress",
+    "progress": 0.45,
+    "status": "Processing book 9 of 20",
+    "processedCount": 9,
+    "currentItem": "978-0-439-70818-0"
+  }
+}
+```
+
+**3. Job Complete**
+```json
+{
+  "type": "job_complete",
+  "jobId": "550e8400-e29b-41d4-a716-446655440000",
+  "pipeline": "batch_enrichment",
+  "timestamp": 1699564920000,
+  "version": "1.0.0",
+  "payload": {
+    "type": "job_complete",
+    "pipeline": "batch_enrichment",
+    "totalProcessed": 20,
+    "successCount": 19,
+    "failureCount": 1,
+    "duration": 120000,
+    "enrichedBooks": [ /* ... */ ]
+  }
+}
+```
+
+**4. Error**
+```json
+{
+  "type": "error",
+  "jobId": "550e8400-e29b-41d4-a716-446655440000",
+  "pipeline": "ai_scan",
+  "timestamp": 1699564860000,
+  "version": "1.0.0",
+  "payload": {
+    "type": "error",
+    "code": "AI_TIMEOUT",
+    "message": "Processing timed out after 180s",
+    "retryable": true
+  }
+}
+```
+
+**Pipeline-Specific Payloads:**
+
+- **batch_enrichment**: Returns `enrichedBooks` array with success/failure status
+- **csv_import**: Returns parsed books and import errors
+- **ai_scan**: Returns detected books with confidence scores and bounding boxes
+
+**Error Codes:**
+- `AI_TIMEOUT` - Gemini processing exceeded time limit
+- `PROVIDER_ERROR` - Upstream API failure (Google Books, etc.)
+- `INTERNAL_ERROR` - Unexpected server error
+- `RATE_LIMIT_EXCEEDED` - Too many concurrent requests
+- `INVALID_INPUT` - Malformed request data
+
+**Source:** `src/types/websocket-messages.ts`
 
 ## Type Definitions
 
