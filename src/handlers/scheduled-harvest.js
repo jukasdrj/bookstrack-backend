@@ -23,6 +23,7 @@
 import { ISBNdbAPI } from '../services/isbndb-api.js';
 import { RateLimiter } from '../utils/rate-limiter.js';
 import { getTopEditions } from '../services/edition-discovery.js';
+import { requireSecret } from '../utils/secrets.ts';
 
 /**
  * Load curated ISBN list from isbn-harvest-list.txt (478 ISBNs from testImages/csv-expansion)
@@ -404,18 +405,7 @@ export async function handleScheduledHarvest(env) {
   console.log('🌾 Starting ISBNdb cover harvest...');
 
   // Resolve ISBNdb API key (supports both Secrets Store binding and plain string)
-  const apiKey = env.ISBNDB_API_KEY?.get
-    ? await env.ISBNDB_API_KEY.get()
-    : env.ISBNDB_API_KEY;
-
-  if (!apiKey) {
-    console.error('❌ ISBNDB_API_KEY not configured');
-    return {
-      success: false,
-      error: 'ISBNDB_API_KEY not configured',
-      duration: Date.now() - startTime
-    };
-  }
+  const apiKey = await requireSecret(env.ISBNDB_API_KEY, 'ISBNDB_API_KEY');
 
   // Initialize services
   const isbndbApi = new ISBNdbAPI(apiKey);

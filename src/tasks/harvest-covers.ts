@@ -6,6 +6,7 @@ import type {
   HarvestReport,
   Env
 } from './types/harvest-types';
+import { requireSecret } from '../utils/secrets.ts';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -79,15 +80,7 @@ function deduplicateISBNs(entries: BookEntry[]): BookEntry[] {
  * Helper to get API key from environment (handles both string and object types)
  */
 async function getApiKey(env: Env): Promise<string> {
-  const apiKey = typeof env.ISBNDB_API_KEY === 'object'
-    ? await env.ISBNDB_API_KEY.get()
-    : env.ISBNDB_API_KEY;
-
-  if (!apiKey) {
-    throw new Error('ISBNDB_API_KEY not found');
-  }
-
-  return apiKey;
+  return await requireSecret(env.ISBNDB_API_KEY, 'ISBNDB_API_KEY');
 }
 
 /**

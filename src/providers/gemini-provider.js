@@ -6,6 +6,7 @@
  */
 
 import { BOOKSHELF_RESPONSE_SCHEMA } from '../types/gemini-schemas.js';
+import { requireSecret } from '../utils/secrets.ts';
 
 /**
  * Scan bookshelf image using Gemini AI
@@ -22,17 +23,10 @@ export async function scanImageWithGemini(imageData, env) {
     console.log('[GeminiProvider] env.GEMINI_API_KEY.get exists:', !!env.GEMINI_API_KEY?.get);
 
     // Get API key
-    const apiKey = env.GEMINI_API_KEY?.get
-        ? await env.GEMINI_API_KEY.get()
-        : env.GEMINI_API_KEY;
+    const apiKey = await requireSecret(env.GEMINI_API_KEY, 'GEMINI_API_KEY');
 
     console.log('[GeminiProvider] DIAGNOSTIC: API key retrieved:', !!apiKey);
     console.log('[GeminiProvider] DIAGNOSTIC: API key length:', apiKey?.length || 0);
-
-    if (!apiKey) {
-        console.error('[GeminiProvider] ERROR: GEMINI_API_KEY not configured or empty');
-        throw new Error('GEMINI_API_KEY not configured');
-    }
 
     // Convert ArrayBuffer to base64
     const bytes = new Uint8Array(imageData);

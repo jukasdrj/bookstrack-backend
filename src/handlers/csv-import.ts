@@ -12,6 +12,7 @@ import { buildCSVParserPrompt, PROMPT_VERSION } from '../prompts/csv-parser-prom
 import { generateCSVCacheKey } from '../utils/cache-keys.js';
 import { parseCSVWithGemini } from '../providers/gemini-csv-provider.js';
 import { createSuccessResponseObject, createErrorResponseObject } from '../types/responses.js';
+import { requireSecret } from '../utils/secrets.ts';
 import type { CSVImportInitResponse } from '../types/responses.js';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -213,27 +214,7 @@ export async function processCSVImportCore(csvText, jobId, doStub, env) {
  * @returns {Promise<Array<Object>>} Parsed book data
  */
 async function callGemini(csvText, prompt, env) {
-  /**
-   * GEMINI_API_KEY binding supports two patterns:
-   *   1. Secrets Store binding (recommended for production): env.GEMINI_API_KEY is a SecretsStore binding and requires .get() to retrieve the value.
-   *   2. Plain string binding (for local development/testing): env.GEMINI_API_KEY is a string.
-   *
-   * This dynamic resolution allows local development with a plaintext key (e.g., via wrangler.toml)
-   * while ensuring production uses the more secure Secrets Store.
-   *
-   * - Use Secrets Store in production for security: `[[secrets]]` in wrangler.toml, or dashboard binding.
-   * - Use plain string only for local/dev/testing: `GEMINI_API_KEY = "sk-..."` in wrangler.toml `[vars]`.
-   *
-   * If neither is configured, an error will be thrown.
-   */
-  const apiKey = env.GEMINI_API_KEY?.get
-    ? await env.GEMINI_API_KEY.get()
-    : env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY not configured');
-  }
-
+  const apiKey = await requireSecret(env.GEMINI_API_KEY, 'GEMINI_API_KEY');
   return await parseCSVWithGemini(csvText, prompt, apiKey);
 }
 

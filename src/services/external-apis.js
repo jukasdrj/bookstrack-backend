@@ -27,6 +27,8 @@ import {
   normalizeISBNdbToAuthor
 } from './normalizers/isbndb.js';
 
+import { requireSecret } from '../utils/secrets.ts';
+
 // ============================================================================
 // Google Books API
 // ============================================================================
@@ -38,13 +40,7 @@ export async function searchGoogleBooksById(volumeId, env) {
   try {
     console.log(`GoogleBooks ID search for "${volumeId}"`);
 
-    const apiKey = env.GOOGLE_BOOKS_API_KEY?.get
-      ? await env.GOOGLE_BOOKS_API_KEY.get()
-      : env.GOOGLE_BOOKS_API_KEY;
-
-    if (!apiKey) {
-      return { success: false, error: "Google Books API key not configured." };
-    }
+    const apiKey = await requireSecret(env.GOOGLE_BOOKS_API_KEY, 'GOOGLE_BOOKS_API_KEY');
 
     const searchUrl = `https://www.googleapis.com/books/v1/volumes/${volumeId}?key=${apiKey}`;
 
@@ -83,14 +79,7 @@ export async function searchGoogleBooks(query, params = {}, env) {
   try {
     console.log(`GoogleBooks search for "${query}"`);
 
-    // Handle both secrets store (has .get() method) and direct env var
-    const apiKey = env.GOOGLE_BOOKS_API_KEY?.get
-      ? await env.GOOGLE_BOOKS_API_KEY.get()
-      : env.GOOGLE_BOOKS_API_KEY;
-
-    if (!apiKey) {
-      return { success: false, error: "Google Books API key not configured." };
-    }
+    const apiKey = await requireSecret(env.GOOGLE_BOOKS_API_KEY, 'GOOGLE_BOOKS_API_KEY');
 
     const maxResults = params.maxResults || 20;
     const searchUrl = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=${maxResults}&key=${apiKey}`;
@@ -146,14 +135,7 @@ export async function searchGoogleBooksByISBN(isbn, env) {
   try {
     console.log(`GoogleBooks ISBN search for "${isbn}"`);
 
-    // Handle both secrets store (has .get() method) and direct env var
-    const apiKey = env.GOOGLE_BOOKS_API_KEY?.get
-      ? await env.GOOGLE_BOOKS_API_KEY.get()
-      : env.GOOGLE_BOOKS_API_KEY;
-
-    if (!apiKey) {
-      return { success: false, error: "Google Books API key not configured." };
-    }
+    const apiKey = await requireSecret(env.GOOGLE_BOOKS_API_KEY, 'GOOGLE_BOOKS_API_KEY');
 
     const searchUrl = `https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(isbn)}&key=${apiKey}`;
 
@@ -590,12 +572,8 @@ export async function getISBNdbBookByISBN(isbn, env) {
 }
 
 async function fetchWithAuth(url, env) {
-  // Handle both secrets store (has .get() method) and direct env var
-  const apiKey = env.ISBNDB_API_KEY?.get
-    ? await env.ISBNDB_API_KEY.get()
-    : env.ISBNDB_API_KEY;
+  const apiKey = await requireSecret(env.ISBNDB_API_KEY, 'ISBNDB_API_KEY');
 
-  if (!apiKey) throw new Error('ISBNDB_API_KEY secret not found');
   const response = await fetch(url, {
     headers: { 'Authorization': apiKey, 'Accept': 'application/json' },
   });

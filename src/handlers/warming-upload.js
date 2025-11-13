@@ -1,5 +1,6 @@
 import { parseCSVWithGemini } from '../providers/gemini-csv-provider.js';
 import { buildCSVParserPrompt } from '../prompts/csv-parser-prompt.js';
+import { requireSecret } from '../utils/secrets.ts';
 
 /**
  * POST /api/warming/upload - Cache warming via CSV upload
@@ -41,18 +42,7 @@ export async function handleWarmingUpload(request, env, ctx) {
     const prompt = buildCSVParserPrompt();
 
     // Get API key from Secrets Store
-    const apiKey = env.GEMINI_API_KEY?.get
-      ? await env.GEMINI_API_KEY.get()
-      : env.GEMINI_API_KEY;
-
-    if (!apiKey) {
-      return new Response(JSON.stringify({
-        error: 'GEMINI_API_KEY not configured'
-      }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
+    const apiKey = await requireSecret(env.GEMINI_API_KEY, 'GEMINI_API_KEY');
 
     const books = await parseCSVWithGemini(csvText, prompt, apiKey);
 
