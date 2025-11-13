@@ -1,9 +1,87 @@
 /**
- * Analytics Engine utilities for cache metrics
+ * Analytics Engine utilities for cache metrics and provider performance
  *
  * Standardized functions for writing cache metrics to Analytics Engine.
  * Used by search endpoints to track ISBN lookups, cache hits/misses, and performance.
+ * Also used by external API services to track provider performance.
  */
+
+/**
+ * Record an event to Analytics Engine dataset
+ * Silently fails if dataset not available (graceful degradation)
+ *
+ * @param {Object} dataset - Analytics Engine dataset binding
+ * @param {Object} event - Event data to write
+ * @param {Array<string|number>} [event.blobs] - Array of string/number values
+ * @param {Array<number>} [event.doubles] - Array of numeric values
+ * @param {Array<string>} [event.indexes] - Array of index values for filtering
+ * @returns {Promise<void>}
+ *
+ * @example
+ * await recordAnalytics(env.GOOGLE_BOOKS_ANALYTICS, {
+ *   blobs: ['query', 'search'],
+ *   doubles: [123, 5],
+ *   indexes: ['google-books-search']
+ * });
+ */
+export async function recordAnalytics(dataset, event) {
+  if (!dataset) {
+    return;
+  }
+
+  try {
+    dataset.writeDataPoint(event);
+  } catch (error) {
+    console.warn('[Analytics] Failed to record event:', error.message);
+  }
+}
+
+/**
+ * Record provider performance metrics
+ *
+ * @param {Object} dataset - Analytics Engine dataset binding
+ * @param {string} provider - Provider name (e.g., 'google-books', 'openlibrary', 'isbndb')
+ * @param {string} operation - Operation type (e.g., 'search', 'isbn_search', 'id_search')
+ * @param {number} processingTimeMs - Processing time in milliseconds
+ * @param {number} resultCount - Number of results returned
+ * @param {string} [error] - Error message if operation failed
+ * @returns {Promise<void>}
+ *
+ * @example
+ * // Success case
+ * await recordProviderMetric(
+ *   env.GOOGLE_BOOKS_ANALYTICS,
+ *   'google-books',
+ *   'search',
+ *   123,
+ *   5
+ * );
+ *
+ * @example
+ * // Error case
+ * await recordProviderMetric(
+ *   env.GOOGLE_BOOKS_ANALYTICS,
+ *   'google-books',
+ *   'search',
+ *   50,
+ *   0,
+ *   'API timeout'
+ * );
+ */
+export async function recordProviderMetric(
+  dataset,
+  provider,
+  operation,
+  processingTimeMs,
+  resultCount,
+  error
+) {
+  await recordAnalytics(dataset, {
+    blobs: [provider, operation, error ? 'error' : 'success'],
+    doubles: [processingTimeMs, resultCount],
+    indexes: [error ? 'provider-error' : 'provider-success']
+  });
+}
 
 /**
  * Write cache metrics to Analytics Engine
