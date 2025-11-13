@@ -9,11 +9,12 @@
     "deploy": "wrangler deploy",
     "tail": "wrangler tail",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "update-wrangler": "npm install wrangler@latest"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
     "vitest": "^4.0.8",
-    "wrangler": "^4.46.0"
+    "wrangler": "^4.48.0"
   }
 }

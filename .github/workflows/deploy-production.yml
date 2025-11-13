@@ -31,7 +31,10 @@ jobs:
       - name: Health Check
         run: |
           sleep 5  # Wait for deployment to propagate
-          curl -f https://api.oooefam.net/health || exit 1
+          curl -f https://api-worker.jukasdrj.workers.dev/health || exit 1
 
       - name: Deployment Success
-        run: echo "✅ Successfully deployed to api.oooefam.net"
+        run: |
+          echo "✅ Successfully deployed!"
+          echo "Workers.dev URL: https://api-worker.jukasdrj.workers.dev"
+          echo "Custom domain: https://api.oooefam.net (requires DNS setup)"

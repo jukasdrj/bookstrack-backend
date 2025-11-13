@@ -1,0 +1,180 @@
+name: Performance Issue
+description: Report a performance problem in the BooksTrack Backend API
+title: "[Performance]: "
+labels: ["type: performance", "status: ready"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a performance issue! Please provide metrics and details below.
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How critical is this performance issue?
+      options:
+        - P0: Critical (API unusable, affecting all users)
+        - P1: High (Significantly degraded performance)
+        - P2: Medium (Noticeable but acceptable)
+        - P3: Low (Optimization opportunity)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component has the performance issue?
+      options:
+        - Search (Google Books, OpenLibrary, ISBNdb)
+        - AI Scanning (Gemini bookshelf scan)
+        - Cache (KV cache)
+        - WebSocket (Progress tracking)
+        - Enrichment (Batch jobs)
+        - Validation (Input validation)
+        - Providers (External APIs)
+        - Routing (Route handlers)
+        - Workers (Cloudflare Workers runtime)
+        - Durable Objects (WebSocket state)
+      multiple: true
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Performance Issue Description
+      description: What's slow or inefficient?
+      placeholder: "/v1/search/isbn endpoint takes 3-5 seconds to respond, should be < 500ms"
+    validations:
+      required: true
+
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Current Metrics
+      description: Provide actual performance numbers
+      placeholder: |
+        **Response time (P95):** 4.2 seconds
+        **Response time (P99):** 6.8 seconds
+        **Target:** < 500ms
+        **Cache hit rate:** 15% (should be > 60%)
+        **Requests/minute:** 100
+    validations:
+      required: true
+
+  - type: textarea
+    id: target
+    attributes:
+      label: Target Performance
+      description: What are the performance goals?
+      placeholder: |
+        - Response time (P95): < 500ms
+        - Response time (P99): < 1s
+        - Cache hit rate: > 60%
+        - Memory usage: < 128MB
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this performance issue?
+      placeholder: |
+        1. Call GET /v1/search/isbn?isbn=9780439708180
+        2. Measure response time with curl -w "@curl-format.txt"
+        3. Observe 4+ second response time
+
+  - type: textarea
+    id: curl
+    attributes:
+      label: curl Command with Timing
+      description: Provide a curl command that demonstrates the issue
+      render: bash
+      placeholder: |
+        curl -w "time_total: %{time_total}\n" \
+          -o /dev/null -s \
+          "https://api.oooefam.net/v1/search/isbn?isbn=9780439708180"
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Where does this occur?
+      options:
+        - Production (api.oooefam.net)
+        - Staging
+        - Local dev (wrangler dev)
+        - All environments
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: symptoms
+    attributes:
+      label: Symptoms
+      description: What performance issues are you seeing?
+      options:
+        - label: Slow response times (> target)
+        - label: High memory usage
+        - label: High CPU usage
+        - label: Timeouts
+        - label: Cache misses
+        - label: External API rate limiting
+        - label: Database/KV slow queries
+        - label: Large payload sizes
+
+  - type: textarea
+    id: investigation
+    attributes:
+      label: Initial Investigation
+      description: What have you already tried or discovered?
+      placeholder: |
+        - Checked wrangler tail logs: no errors, just slow
+        - Reviewed Cloudflare Analytics: P95 response time is 4.2s
+        - Tested with cache disabled: same slow response
+        - Hypothesis: External API (Google Books) is slow
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution
+      description: Do you have ideas for fixing this?
+      placeholder: |
+        **Option 1:** Add aggressive caching (24h TTL)
+        - Pros: Reduces external API calls
+        - Cons: Stale data risk
+
+        **Option 2:** Use parallel fallback (Google Books + OpenLibrary simultaneously)
+        - Pros: Faster responses
+        - Cons: More external API usage
+
+        **Option 3:** Implement request coalescing for duplicate ISBNs
+        - Pros: Reduces duplicate work
+        - Cons: Added complexity
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: User Impact
+      description: How does this affect users?
+      placeholder: |
+        - Mobile app feels slow and unresponsive
+        - Users wait 5+ seconds for search results
+        - Poor user experience compared to competitors
+
+  - type: textarea
+    id: cost-impact
+    attributes:
+      label: Cost Impact
+      description: Does this cause increased costs?
+      placeholder: |
+        - High cache miss rate → more external API calls
+        - Exceeding Google Books quota (1000/day)
+        - May need to upgrade to paid tier
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other relevant information (screenshots, graphs, etc.)

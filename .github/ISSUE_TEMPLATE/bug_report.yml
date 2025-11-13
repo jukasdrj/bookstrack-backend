@@ -1,0 +1,130 @@
+name: Bug Report
+description: Report a bug in the BooksTrack Backend API
+title: "[Bug]: "
+labels: ["type: bug", "status: ready"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the information below to help us fix it quickly.
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How critical is this bug?
+      options:
+        - P0: Critical (Production down, data loss)
+        - P1: High (Major functionality broken)
+        - P2: Medium (Important but not blocking)
+        - P3: Low (Minor issue, polish)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of the backend is affected?
+      options:
+        - Search (Google Books, OpenLibrary, ISBNdb)
+        - AI Scanning (Gemini bookshelf scan)
+        - Cache (KV cache)
+        - WebSocket (Progress tracking)
+        - Enrichment (Batch jobs)
+        - Validation (Input validation)
+        - Providers (External APIs)
+        - Routing (Route handlers)
+        - Workers (Cloudflare Workers runtime)
+        - Durable Objects (WebSocket state)
+      multiple: true
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: Clear description of what's wrong
+      placeholder: "When I call /v1/search/isbn with ISBN 9780439708180, I get a 500 error..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this bug?
+      placeholder: |
+        1. Call GET /v1/search/isbn?isbn=9780439708180
+        2. Observe 500 error
+        3. Check logs: "Cannot read property 'title' of undefined"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should happen?
+      placeholder: "Should return canonical book object with 200 status"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happens?
+      placeholder: "Returns 500 error with generic error message"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Where does this occur?
+      options:
+        - Production (api.oooefam.net)
+        - Staging
+        - Local dev (wrangler dev)
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or Error Messages
+      description: Paste relevant logs (from `wrangler tail` or Cloudflare dashboard)
+      render: shell
+      placeholder: |
+        [ERROR] TypeError: Cannot read property 'title' of undefined
+          at searchHandler (src/handlers/search.js:42)
+
+  - type: textarea
+    id: curl
+    attributes:
+      label: curl Command to Reproduce
+      description: Provide a curl command that reproduces the issue
+      render: bash
+      placeholder: |
+        curl -X GET "https://api.oooefam.net/v1/search/isbn?isbn=9780439708180" \
+          -H "Content-Type: application/json"
+
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Impact
+      description: Who is affected?
+      options:
+        - label: All users
+        - label: Specific users (describe below)
+        - label: Only in specific scenarios
+        - label: Only local dev environment
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other relevant information (related issues, recent changes, etc.)

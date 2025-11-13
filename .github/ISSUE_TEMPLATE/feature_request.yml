@@ -1,0 +1,189 @@
+name: Feature Request
+description: Suggest a new feature for the BooksTrack Backend API
+title: "[Feature]: "
+labels: ["type: feature", "status: ready"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please provide details below.
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature?
+      options:
+        - P0: Critical (Blocking production)
+        - P1: High (Important for users)
+        - P2: Medium (Nice to have)
+        - P3: Low (Future enhancement)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase
+      description: Which development phase does this belong to?
+      options:
+        - "phase: 1-foundation (Core infrastructure)"
+        - "phase: 2-search (Search functionality)"
+        - "phase: 3-scanning (AI features)"
+        - "phase: 4-caching (Performance)"
+        - "phase: 5-optimization (Cost reduction)"
+        - "phase: 6-launch (Production readiness)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component(s) will this affect?
+      options:
+        - Search (Google Books, OpenLibrary, ISBNdb)
+        - AI Scanning (Gemini bookshelf scan)
+        - Cache (KV cache)
+        - WebSocket (Progress tracking)
+        - Enrichment (Batch jobs)
+        - Validation (Input validation)
+        - Providers (External APIs)
+        - Routing (Route handlers)
+        - Workers (Cloudflare Workers runtime)
+        - Durable Objects (WebSocket state)
+      multiple: true
+    validations:
+      required: true
+
+  - type: textarea
+    id: user-story
+    attributes:
+      label: User Story
+      description: Describe the feature as a user story
+      placeholder: "As a [mobile app], I want [batch ISBN lookup endpoint] so that [I can validate 100 ISBNs at once]"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: Detailed description of the feature
+      placeholder: |
+        Add a new endpoint POST /v1/search/batch that accepts up to 100 ISBNs and returns results for all of them.
+        - Accept array of ISBNs in request body
+        - Process in parallel (Promise.all)
+        - Return array of canonical book objects
+        - Cache individual results in KV
+    validations:
+      required: true
+
+  - type: textarea
+    id: api-design
+    attributes:
+      label: API Design
+      description: Proposed API endpoint(s) and request/response format
+      placeholder: |
+        **Endpoint:** POST /v1/search/batch
+        **Request:**
+        ```json
+        {
+          "isbns": ["9780439708180", "9780743273565"],
+          "cache": true
+        }
+        ```
+        **Response:**
+        ```json
+        {
+          "success": true,
+          "data": [
+            { "isbn": "9780439708180", "title": "Harry Potter" },
+            { "isbn": "9780743273565", "title": "The Great Gatsby" }
+          ],
+          "metadata": {
+            "total": 2,
+            "found": 2,
+            "cached": 1
+          }
+        }
+        ```
+
+  - type: textarea
+    id: success-criteria
+    attributes:
+      label: Success Criteria
+      description: How will we know this feature is complete?
+      placeholder: |
+        - [ ] Endpoint accepts up to 100 ISBNs
+        - [ ] Returns results in < 5 seconds
+        - [ ] Individual results cached in KV
+        - [ ] Error handling for invalid ISBNs
+        - [ ] Tests cover edge cases
+        - [ ] Documentation updated
+    validations:
+      required: true
+
+  - type: dropdown
+    id: effort
+    attributes:
+      label: Estimated Effort
+      description: How long will this take?
+      options:
+        - "effort: XS (<2h)"
+        - "effort: S (2-4h)"
+        - "effort: M (4-8h)"
+        - "effort: L (1-3d)"
+        - "effort: XL (3-5d)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: What needs to exist before this can be built?
+      placeholder: |
+        - Search service must support batch operations
+        - KV cache must be configured
+        - Rate limiting needs to support batch endpoints
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks and Considerations
+      description: What could go wrong? What should we be careful about?
+      placeholder: |
+        - Large batches (100 ISBNs) could timeout (5s limit)
+        - External API rate limits may be exceeded
+        - Memory usage for large responses
+        - Cost: 100 KV writes per request
+
+  - type: checkboxes
+    id: breaking-change
+    attributes:
+      label: Breaking Changes
+      description: Will this break existing functionality?
+      options:
+        - label: This is a breaking change (requires migration)
+        - label: This is backwards compatible
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative Approaches
+      description: Are there other ways to solve this problem?
+      placeholder: |
+        **Alternative 1:** Use existing /v1/search/isbn endpoint with multiple calls
+        - Pros: No backend changes needed
+        - Cons: Slower (sequential), more client complexity
+
+        **Alternative 2:** Create background job with job ID
+        - Pros: Can handle larger batches, doesn't timeout
+        - Cons: More complex (WebSocket, Durable Objects)
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other relevant information
