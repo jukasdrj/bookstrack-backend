@@ -1,4 +1,5 @@
 import { ProgressWebSocketDO } from './durable-objects/progress-socket.js';
+import { RateLimiterDO } from './durable-objects/rate-limiter.js';
 import * as externalApis from './services/external-apis.js';
 import * as enrichment from './services/enrichment.ts';
 import * as aiScanner from './services/ai-scanner.js';
@@ -25,8 +26,8 @@ import { checkRateLimit } from './middleware/rate-limiter.js';
 import { validateRequestSize, validateResourceSize } from './middleware/size-validator.js';
 import { getCorsHeaders } from './middleware/cors.js';
 
-// Export the Durable Object class for Cloudflare Workers runtime
-export { ProgressWebSocketDO };
+// Export the Durable Object classes for Cloudflare Workers runtime
+export { ProgressWebSocketDO, RateLimiterDO };
 
 export default {
   async fetch(request, env, ctx) {
