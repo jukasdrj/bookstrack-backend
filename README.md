@@ -21,12 +21,15 @@
 │   ├── middleware/           # CORS, rate limiting, validation
 │   ├── types/                # TypeScript type definitions
 │   └── utils/                # Shared utilities
-├── tests/                    # All tests and fixtures
-│   ├── unit/                 # Unit tests
-│   ├── integration/          # Integration tests
-│   ├── handlers/             # Handler-specific tests
+├── tests/                    # All tests and fixtures (425+ tests)
+│   ├── unit/                 # Unit tests (validators, auth, cache, normalizers)
+│   ├── integration/          # Integration tests (APIs, enrichment, WebSocket)
+│   ├── handlers/             # Handler-specific tests (search, batch, CSV)
+│   ├── error-scenarios/      # Error handling and concurrency tests
+│   ├── e2e/                  # End-to-end workflow tests
 │   ├── normalizers/          # Data normalization tests
 │   ├── utils/                # Utility function tests
+│   ├── mocks/                # Test mocks and fixtures
 │   └── assets/               # Test images and fixtures
 ├── docs/                     # Documentation
 │   ├── deployment/           # Deployment guides (DEPLOYMENT.md, SECRETS_SETUP.md)
@@ -141,13 +144,49 @@ Configure these in GitHub repository settings → Settings → Secrets and varia
 
 ## Testing
 
-### Health Check
+### Automated Test Suite
+
+The repository includes a comprehensive test suite with 240+ test cases covering all critical components.
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with UI
+npm run test:ui
+
+# Generate coverage report
+npm run test:coverage
+```
+
+**Test Structure:**
+- `tests/unit/` - Unit tests for validators, normalizers, auth, cache
+- `tests/integration/` - Integration tests for external APIs, enrichment, WebSocket
+- `tests/handlers/` - Handler-specific tests for all API endpoints
+- `tests/error-scenarios/` - Concurrency, network failures, state violations
+- `tests/e2e/` - End-to-end workflow tests
+
+**Coverage Targets:**
+- Overall: 75%+ coverage
+- Critical paths: 80%+ coverage
+- 425+ tests currently passing
+
+**Documentation:**
+- [TEST_PLAN.md](TEST_PLAN.md) - Complete testing strategy (240+ test cases)
+- [TEST_IMPLEMENTATION_GUIDE.md](TEST_IMPLEMENTATION_GUIDE.md) - Implementation roadmap
+
+### Manual Testing
+
+#### Health Check
 
 ```bash
 curl https://api.oooefam.net/health
 ```
 
-### Search Endpoints
+#### Search Endpoints
 
 ```bash
 # Title search
@@ -160,7 +199,7 @@ curl "https://api.oooefam.net/v1/search/isbn?isbn=9780743273565"
 curl "https://api.oooefam.net/v1/search/advanced?title=1984&author=Orwell"
 ```
 
-### WebSocket Flow
+#### WebSocket Flow
 
 1. Connect to WebSocket:
 ```bash
@@ -194,6 +233,8 @@ npx wrangler tail --format pretty
 ### Quick Links (Start Here)
 - **[API Reference](docs/API_README.md)** - Canonical contracts, endpoints, and integration patterns
 - **[Frontend Integration Guide](docs/FRONTEND_HANDOFF.md)** - iOS and Flutter integration guidance
+- **[Test Plan](TEST_PLAN.md)** - Comprehensive testing strategy (240+ test cases)
+- **[Test Implementation Guide](TEST_IMPLEMENTATION_GUIDE.md)** - Test implementation roadmap
 
 ### Deployment & Operations
 - **[Deployment Guide](docs/deployment/DEPLOYMENT.md)** - Complete deployment guide with rollback procedures
