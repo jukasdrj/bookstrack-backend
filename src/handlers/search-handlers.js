@@ -7,7 +7,7 @@
  * - Request coalescing to prevent duplicate in-flight calls
  */
 
-import * as externalApis from '../services/external-apis.js';
+import * as externalApis from '../services/external-apis.ts';
 
 // Request coalescing: Map of in-flight requests by cache key
 const IN_FLIGHT_REQUESTS = new Map();

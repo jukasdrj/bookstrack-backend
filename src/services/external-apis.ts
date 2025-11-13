@@ -9,6 +9,9 @@
  * TypeScript canonical contracts (WorkDTO, EditionDTO, AuthorDTO).
  */
 
+import type { WorkDTO, EditionDTO, AuthorDTO } from '../types/canonical.js';
+import type { DataProvider } from '../types/enums.js';
+
 import {
   normalizeGoogleBooksToWork,
   normalizeGoogleBooksToEdition,
@@ -28,12 +31,59 @@ import {
 } from './normalizers/isbndb.js';
 
 // ============================================================================
+// Type Definitions
+// ============================================================================
+
+/**
+ * WorkDTO with temporary authors array for enrichment service compatibility
+ */
+interface WorkDTOWithAuthors extends WorkDTO {
+  authors?: AuthorDTO[];
+}
+
+/**
+ * Standard API response envelope
+ */
+interface ApiResponse {
+  success: boolean;
+  works?: WorkDTOWithAuthors[];
+  editions?: EditionDTO[];
+  authors?: AuthorDTO[];
+  provider?: DataProvider;
+  processingTime?: number;
+  error?: string;
+  totalResults?: number;
+  work?: WorkDTO; // Single work result
+  edition?: EditionDTO; // Single edition result
+  book?: any; // Raw book data for backward compatibility
+  author?: any; // Author info for getOpenLibraryAuthorWorks
+}
+
+/**
+ * Search parameters for external APIs
+ */
+interface SearchParams {
+  maxResults?: number;
+}
+
+/**
+ * Worker environment bindings
+ */
+interface WorkerEnv {
+  GOOGLE_BOOKS_API_KEY?: any;
+  ISBNDB_API_KEY?: any;
+  KV_CACHE?: any;
+  CACHE?: any;
+  GOOGLE_BOOKS_ANALYTICS?: any;
+}
+
+// ============================================================================
 // Google Books API
 // ============================================================================
 
 const GOOGLE_BOOKS_USER_AGENT = 'BooksTracker/1.0 (nerd@ooheynerds.com) GoogleBooksWorker/1.0.0';
 
-export async function searchGoogleBooksById(volumeId, env) {
+export async function searchGoogleBooksById(volumeId: string, env: WorkerEnv): Promise<ApiResponse> {
   const startTime = Date.now();
   try {
     console.log(`GoogleBooks ID search for "${volumeId}"`);
@@ -74,11 +124,11 @@ export async function searchGoogleBooksById(volumeId, env) {
   } catch (error) {
     const processingTime = Date.now() - startTime;
     console.error(`Error in GoogleBooks ID search:`, error);
-    return { success: false, error: error.message, processingTime };
+    return { success: false, error: (error as Error).message, processingTime };
   }
 }
 
-export async function searchGoogleBooks(query, params = {}, env) {
+export async function searchGoogleBooks(query: string, params: SearchParams = {}, env: WorkerEnv): Promise<ApiResponse> {
   const startTime = Date.now();
   try {
     console.log(`GoogleBooks search for "${query}"`);
@@ -137,11 +187,11 @@ export async function searchGoogleBooks(query, params = {}, env) {
       });
     }
 
-    return { success: false, error: error.message, processingTime };
+    return { success: false, error: (error as Error).message, processingTime };
   }
 }
 
-export async function searchGoogleBooksByISBN(isbn, env) {
+export async function searchGoogleBooksByISBN(isbn: string, env: WorkerEnv): Promise<ApiResponse> {
   const startTime = Date.now();
   try {
     console.log(`GoogleBooks ISBN search for "${isbn}"`);
@@ -199,7 +249,7 @@ export async function searchGoogleBooksByISBN(isbn, env) {
       });
     }
 
-    return { success: false, error: error.message, processingTime };
+    return { success: false, error: (error as Error).message, processingTime };
   }
 }
 
@@ -211,14 +261,14 @@ export async function searchGoogleBooksByISBN(isbn, env) {
  * for enrichment service compatibility (WorkDTOWithAuthors type).
  * Handlers must strip this property before sending to client.
  */
-function normalizeGoogleBooksResponse(apiResponse) {
+function normalizeGoogleBooksResponse(apiResponse: any): { works: WorkDTOWithAuthors[]; editions: EditionDTO[]; authors: AuthorDTO[] } {
   if (!apiResponse.items || apiResponse.items.length === 0) {
     return { works: [], editions: [], authors: [] };
   }
 
-  const works = [];
-  const editions = [];
-  const authorsMap = new Map();
+  const works: WorkDTOWithAuthors[] = [];
+  const editions: EditionDTO[] = [];
+  const authorsMap = new Map<string, AuthorDTO>();
 
   apiResponse.items.forEach(item => {
     const volumeInfo = item.volumeInfo;
@@ -240,7 +290,7 @@ function normalizeGoogleBooksResponse(apiResponse) {
     }));
 
     // Attach authors to work for enrichment service compatibility
-    work.authors = authors;
+    (work as WorkDTOWithAuthors).authors = authors;
 
     // Add to authors map for deduplication
     authors.forEach(author => {
@@ -266,7 +316,7 @@ function normalizeGoogleBooksResponse(apiResponse) {
 
 const OPENLIBRARY_USER_AGENT = 'BooksTracker/1.0 (nerd@ooheynerds.com) OpenLibraryWorker/1.1.0';
 
-export async function searchOpenLibraryByGoodreadsId(goodreadsId, env) {
+export async function searchOpenLibraryByGoodreadsId(goodreadsId: string, env: WorkerEnv): Promise<ApiResponse> {
   try {
     console.log(`OpenLibrary Goodreads ID search for "${goodreadsId}"`);
 
@@ -293,11 +343,11 @@ export async function searchOpenLibraryByGoodreadsId(goodreadsId, env) {
     };
   } catch (error) {
     console.error(`Error in OpenLibrary Goodreads ID search for "${goodreadsId}":`, error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
-export async function searchOpenLibraryById(workId, env) {
+export async function searchOpenLibraryById(workId: string, env: WorkerEnv): Promise<ApiResponse> {
   try {
     console.log(`OpenLibrary ID search for "${workId}"`);
 
@@ -320,11 +370,11 @@ export async function searchOpenLibraryById(workId, env) {
     };
   } catch (error) {
     console.error(`Error in OpenLibrary ID search for "${workId}":`, error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
-export async function searchOpenLibrary(query, params = {}, env) {
+export async function searchOpenLibrary(query: string, params: SearchParams = {}, env: WorkerEnv): Promise<ApiResponse> {
   try {
     console.log(`OpenLibrary general search for "${query}"`);
 
@@ -353,11 +403,11 @@ export async function searchOpenLibrary(query, params = {}, env) {
 
   } catch (error) {
     console.error(`Error in OpenLibrary search for "${query}":`, error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
-export async function getOpenLibraryAuthorWorks(authorName, env) {
+export async function getOpenLibraryAuthorWorks(authorName: string, env: WorkerEnv): Promise<ApiResponse> {
   try {
     console.log(`OpenLibrary getAuthorWorks("${authorName}")`);
 
@@ -368,9 +418,9 @@ export async function getOpenLibraryAuthorWorks(authorName, env) {
 
     const works = await getWorksByAuthorKey(authorKey);
 
-    const response = {
+    const response: ApiResponse = {
       success: true,
-      provider: 'openlibrary',
+      provider: 'openlibrary' as DataProvider,
       author: {
         name: authorName,
         openLibraryKey: authorKey,
@@ -382,7 +432,7 @@ export async function getOpenLibraryAuthorWorks(authorName, env) {
 
   } catch (error) {
     console.error(`Error in getAuthorWorks for "${authorName}":`, error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -394,10 +444,10 @@ export async function getOpenLibraryAuthorWorks(authorName, env) {
  * for enrichment service compatibility (WorkDTOWithAuthors type).
  * Handlers must strip this property before sending to client.
  */
-function normalizeOpenLibrarySearchResults(docs) {
-  const works = [];
-  const editions = [];
-  const authorsMap = new Map();
+function normalizeOpenLibrarySearchResults(docs: any[]): { works: WorkDTOWithAuthors[]; editions: EditionDTO[]; authors: AuthorDTO[] } {
+  const works: WorkDTOWithAuthors[] = [];
+  const editions: EditionDTO[] = [];
+  const authorsMap = new Map<string, AuthorDTO>();
 
   docs.forEach(doc => {
     if (!doc.title) return;
@@ -413,7 +463,7 @@ function normalizeOpenLibrarySearchResults(docs) {
     const authors = authorNames.map(name => normalizeOpenLibraryToAuthor(name));
 
     // Attach authors to work for enrichment service compatibility
-    work.authors = authors;
+    (work as WorkDTOWithAuthors).authors = authors;
 
     // Add to authors map for deduplication
     authors.forEach(author => {
@@ -433,7 +483,7 @@ function normalizeOpenLibrarySearchResults(docs) {
   };
 }
 
-async function findAuthorKeyByName(authorName) {
+async function findAuthorKeyByName(authorName: string): Promise<string | null> {
   const searchUrl = `https://openlibrary.org/search/authors.json?q=${encodeURIComponent(authorName)}&limit=1`;
   const response = await fetch(searchUrl, { headers: { 'User-Agent': OPENLIBRARY_USER_AGENT } });
   if (!response.ok) throw new Error('OpenLibrary author search API failed');
@@ -441,7 +491,7 @@ async function findAuthorKeyByName(authorName) {
   return data.docs && data.docs.length > 0 ? data.docs[0].key : null;
 }
 
-async function getWorksByAuthorKey(authorKey) {
+async function getWorksByAuthorKey(authorKey: string): Promise<any> {
   const worksUrl = `https://openlibrary.org/authors/${authorKey}/works.json?limit=1000`;
   const response = await fetch(worksUrl, { headers: { 'User-Agent': OPENLIBRARY_USER_AGENT } });
   if (!response.ok) throw new Error('OpenLibrary works fetch API failed');
@@ -468,7 +518,7 @@ const RATE_LIMIT_INTERVAL = 1000;
  * Search ISBNdb for books by title and author using combined search endpoint
  * This is optimized for enrichment - uses both author and text parameters
  */
-export async function searchISBNdb(title, authorName, env) {
+export async function searchISBNdb(title: string, authorName: string, env: WorkerEnv): Promise<ApiResponse> {
   try {
     console.log(`ISBNdb search for "${title}" by "${authorName || 'any author'}"`);
 
@@ -486,9 +536,9 @@ export async function searchISBNdb(title, authorName, env) {
     }
 
     // Use canonical normalizers for ISBNdb data
-    const works = [];
-    const editions = [];
-    const authorsSet = new Set();
+    const works: WorkDTO[] = [];
+    const editions: EditionDTO[] = [];
+    const authorsSet = new Set<string>();
 
     for (const book of searchResponse.books) {
       // Normalize to canonical WorkDTO
@@ -522,11 +572,11 @@ export async function searchISBNdb(title, authorName, env) {
 
   } catch (error) {
     console.error(`Error in ISBNdb search for "${title}":`, error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
-export async function getISBNdbEditionsForWork(title, authorName, env) {
+export async function getISBNdbEditionsForWork(title: string, authorName: string, env: WorkerEnv): Promise<ApiResponse> {
   try {
     console.log(`ISBNdb getEditionsForWork ("${title}", "${authorName}")`);
     const searchUrl = `https://api2.isbndb.com/books/${encodeURIComponent(title)}?column=title&language=en&shouldMatchAll=1&pageSize=100`;
@@ -551,11 +601,11 @@ export async function getISBNdbEditionsForWork(title, authorName, env) {
 
   } catch (error) {
     console.error(`Error in getEditionsForWork for "${title}":`, error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
-export async function getISBNdbBookByISBN(isbn, env) {
+export async function getISBNdbBookByISBN(isbn: string, env: WorkerEnv): Promise<ApiResponse> {
   try {
     console.log(`ISBNdb getBookByISBN("${isbn}")`);
     const url = `https://api2.isbndb.com/book/${isbn}?with_prices=0`;
@@ -585,11 +635,11 @@ export async function getISBNdbBookByISBN(isbn, env) {
     };
   } catch (error) {
     console.error(`Error in getBookByISBN for "${isbn}":`, error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
-async function fetchWithAuth(url, env) {
+async function fetchWithAuth(url: string, env: WorkerEnv): Promise<any> {
   // Handle both secrets store (has .get() method) and direct env var
   const apiKey = env.ISBNDB_API_KEY?.get
     ? await env.ISBNDB_API_KEY.get()
@@ -606,7 +656,7 @@ async function fetchWithAuth(url, env) {
   return response.json();
 }
 
-async function enforceRateLimit(env) {
+async function enforceRateLimit(env: WorkerEnv): Promise<void> {
   // Use CACHE binding instead of KV_CACHE (unified naming)
   const kvBinding = env.KV_CACHE || env.CACHE;
   if (!kvBinding) {
@@ -629,7 +679,7 @@ async function enforceRateLimit(env) {
 // Helper Functions
 // ============================================================================
 
-function extractYear(dateString) {
+function extractYear(dateString?: string): number | null {
   if (!dateString) return null;
   const yearMatch = dateString.match(/(\d{4})/);
   return yearMatch ? parseInt(yearMatch[1], 10) : null;

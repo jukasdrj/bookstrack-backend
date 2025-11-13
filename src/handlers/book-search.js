@@ -7,7 +7,7 @@
  * - ISBN search: 7 day TTL (604800 seconds) - ISBN data is stable
  */
 
-import * as externalApis from '../services/external-apis.js';
+import * as externalApis from '../services/external-apis.ts';
 import { setCached, generateCacheKey } from '../utils/cache.js';
 import { UnifiedCacheService } from '../services/unified-cache.js';
 import { writeCacheMetrics } from '../utils/analytics.js';

@@ -11,7 +11,7 @@
  * - /v1/search/* endpoints (title, ISBN, advanced search)
  */
 
-import * as externalApis from './external-apis.js';
+import * as externalApis from './external-apis.ts';
 import type { WorkDTO, EditionDTO, AuthorDTO } from '../types/canonical.js';
 import type { DataProvider } from '../types/enums.js';
 
