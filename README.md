@@ -237,6 +237,7 @@ const mockEnv = {
 For complete testing strategy and implementation guide, see:
 - [TEST_PLAN.md](TEST_PLAN.md) - Complete testing strategy with 240+ test cases
 - [TEST_IMPLEMENTATION_GUIDE.md](TEST_IMPLEMENTATION_GUIDE.md) - 4-week phased implementation roadmap
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Contributor guidelines with detailed testing requirements
 
 ### Manual Testing
 
