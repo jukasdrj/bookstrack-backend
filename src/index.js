@@ -548,6 +548,19 @@ export default {
     }
 
     // ========================================================================
+    // Enrichment API - V1 (Canonical Endpoint)
+    // ========================================================================
+
+    // POST /v1/enrichment/batch - Batch enrichment with canonical response format
+    if (url.pathname === '/v1/enrichment/batch' && request.method === 'POST') {
+      // Rate limiting: Prevent denial-of-wallet attacks
+      const rateLimitResponse = await checkRateLimit(request, env);
+      if (rateLimitResponse) return rateLimitResponse;
+
+      return handleBatchEnrichment(request, env, ctx);
+    }
+
+    // ========================================================================
     // Image Proxy Endpoint
     // ========================================================================
 
@@ -1049,12 +1062,17 @@ export default {
         worker: 'api-worker',
         version: '1.0.0',
         endpoints: [
+          'GET /v1/search/title?q={query} - Canonical title search',
+          'GET /v1/search/isbn?isbn={isbn} - Canonical ISBN search',
+          'GET /v1/search/advanced?title={title}&author={author} - Canonical advanced search',
+          'POST /v1/enrichment/batch - Canonical batch enrichment (body: {jobId, books: [{title, author?, isbn?}]})',
           'GET /search/title?q={query}&maxResults={n} - Title search with caching (6h TTL)',
           'GET /search/isbn?isbn={isbn}&maxResults={n} - ISBN search with caching (7 day TTL)',
           'GET /search/author?q={author}&limit={n}&offset={n}&sortBy={sort} - Author bibliography (6h TTL)',
           'GET /search/advanced?title={title}&author={author} - Advanced search (primary method, 6h cache)',
           'POST /search/advanced - Advanced search (legacy support, JSON body)',
           'POST /api/enrichment/start - Start batch enrichment job',
+          'POST /api/enrichment/batch - Batch enrichment (body: {jobId, books: [{title, author?, isbn?}]})',
           'POST /api/enrichment/cancel - Cancel in-flight enrichment job (body: {jobId})',
           'POST /api/scan-bookshelf?jobId={id} - AI bookshelf scanner (upload image with Content-Type: image/*)',
           'POST /api/scan-bookshelf/batch - Batch AI scanner (body: {jobId, images: [{index, data}]})',
