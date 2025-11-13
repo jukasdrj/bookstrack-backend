@@ -8,6 +8,12 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
+  searchGoogleBooks,
+  searchGoogleBooksById,
+  searchOpenLibrary,
+  searchISBNdb
+} from '../../src/services/external-apis.js'
+import {
   mockGoogleBooksSearchResponse,
   mockGoogleBooksEmptyResponse,
   mockOpenLibrarySearchResponse,
@@ -26,10 +32,16 @@ import {
  */
 describe('Google Books Integration', () => {
   let mockFetch
+  let mockEnv
 
   beforeEach(() => {
     mockFetch = vi.fn()
     global.fetch = mockFetch
+    
+    // Mock environment with API key
+    mockEnv = {
+      GOOGLE_BOOKS_API_KEY: 'test-api-key'
+    }
   })
 
   afterEach(() => {
@@ -41,81 +53,98 @@ describe('Google Books Integration', () => {
     const mockResponse = createMockFetchResponse(mockGoogleBooksSearchResponse, 200)
     mockFetch.mockResolvedValueOnce(mockResponse)
 
-    const response = mockGoogleBooksSearchResponse
-    expect(response.items).toBeDefined()
-    expect(response.items.length).toBeGreaterThan(0)
-    expect(response.items[0].volumeInfo.title).toContain('Harry Potter')
+    const result = await searchGoogleBooks('Harry Potter', {}, mockEnv)
+    
+    expect(result.success).toBe(true)
+    expect(result.provider).toBe('google-books')
+    expect(result.works).toBeDefined()
+    expect(result.works.length).toBeGreaterThan(0)
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('googleapis.com/books/v1/volumes'),
+      expect.any(Object)
+    )
   })
 
   it('should search Google Books by ISBN and return results', async () => {
     const mockResponse = createMockFetchResponse(mockGoogleBooksSearchResponse, 200)
     mockFetch.mockResolvedValueOnce(mockResponse)
 
-    const response = mockGoogleBooksSearchResponse
-    expect(response.items).toBeDefined()
-    expect(response.items[0].volumeInfo.industryIdentifiers).toBeDefined()
-
-    const isbn13 = response.items[0].volumeInfo.industryIdentifiers.find(
-      id => id.type === 'ISBN_13'
-    )
-    expect(isbn13).toBeDefined()
-    expect(isbn13.identifier).toBe('9780439708180')
+    const result = await searchGoogleBooks('isbn:9780439708180', {}, mockEnv)
+    
+    expect(result.success).toBe(true)
+    expect(result.works).toBeDefined()
+    expect(result.editions).toBeDefined()
+    expect(mockFetch).toHaveBeenCalled()
   })
 
   it('should handle empty search results from Google Books', async () => {
     const mockResponse = createMockFetchResponse(mockGoogleBooksEmptyResponse, 200)
     mockFetch.mockResolvedValueOnce(mockResponse)
 
-    const response = mockGoogleBooksEmptyResponse
-    expect(response.totalItems).toBe(0)
-    expect(response.items).toEqual([])
+    const result = await searchGoogleBooks('nonexistentbook12345', {}, mockEnv)
+    
+    expect(result.success).toBe(true)
+    expect(result.works).toBeDefined()
+    expect(result.works.length).toBe(0)
   })
 
   it('should handle 429 rate limit response', async () => {
     const mockResponse = createMockFetchResponse(mockRateLimitError, 429)
     mockFetch.mockResolvedValueOnce(mockResponse)
 
-    const response = mockRateLimitError
-    expect(response.error.code).toBe(429)
-    expect(response.error.status).toBe('RESOURCE_EXHAUSTED')
+    const result = await searchGoogleBooks('test query', {}, mockEnv)
+    
+    expect(result.success).toBe(false)
+    expect(result.error).toBeDefined()
   })
 
   it('should return error when Google Books API key missing', async () => {
-    const mockResponse = createMockFetchResponse(mockUnauthorizedError, 401)
-    mockFetch.mockResolvedValueOnce(mockResponse)
-
-    const response = mockUnauthorizedError
-    expect(response.error.code).toBe(401)
-    expect(response.error.message).toContain('Invalid API key')
+    const envWithoutKey = {}
+    
+    const result = await searchGoogleBooks('test query', {}, envWithoutKey)
+    
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('API key')
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('should timeout Google Books requests after 5000ms', async () => {
     const timeoutError = createMockFetchTimeout()
     mockFetch.mockRejectedValueOnce(timeoutError)
 
-    expect(() => {
-      throw timeoutError
-    }).toThrow('Fetch timeout after 5000ms')
+    const result = await searchGoogleBooks('test query', {}, mockEnv)
+    
+    expect(result.success).toBe(false)
+    expect(result.error).toBeDefined()
   })
 
   it('should handle malformed JSON from Google Books', async () => {
     // Simulate malformed response by throwing error
     mockFetch.mockRejectedValueOnce(new Error('Invalid JSON'))
 
-    expect(() => {
-      throw new Error('Invalid JSON')
-    }).toThrow('Invalid JSON')
+    const result = await searchGoogleBooks('test query', {}, mockEnv)
+    
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('Invalid JSON')
   })
 
   it('should normalize Google Books response to canonical format', async () => {
-    const googleBooksItem = mockGoogleBooksSearchResponse.items[0]
-    const volumeInfo = googleBooksItem.volumeInfo
+    const mockResponse = createMockFetchResponse(mockGoogleBooksSearchResponse, 200)
+    mockFetch.mockResolvedValueOnce(mockResponse)
 
-    // Verify structure matches normalized format expectations
-    expect(volumeInfo.title).toBeDefined()
-    expect(volumeInfo.authors).toBeDefined()
-    expect(volumeInfo.publisher).toBeDefined()
-    expect(volumeInfo.industryIdentifiers).toBeDefined()
+    const result = await searchGoogleBooks('Harry Potter', {}, mockEnv)
+    
+    // Verify canonical format (WorkDTO)
+    expect(result.works).toBeDefined()
+    expect(result.editions).toBeDefined()
+    expect(result.authors).toBeDefined()
+    
+    if (result.works.length > 0) {
+      const work = result.works[0]
+      expect(work).toHaveProperty('title')
+      expect(work).toHaveProperty('authors')
+      expect(Array.isArray(work.authors)).toBe(true)
+    }
   })
 })
 
