@@ -409,7 +409,6 @@ End-to-End:
 **Test Count:** 30 tests
 
 **Endpoints:**
-- `POST /api/enrichment/batch` - Batch book enrichment
 - `POST /api/scan-bookshelf?jobId={uuid}` - Bookshelf scan
 - `POST /api/import/csv-gemini` - CSV import
 
@@ -560,7 +559,7 @@ tests/
 │   ├── token-refresh.test.js (5 tests)
 │   │   └── /api/token/refresh endpoint
 │   └── batch-scan.test.js (5 tests)
-│       └── /api/scan-bookshelf, /api/enrichment/batch
+│       └── /api/scan-bookshelf
 │
 ├── e2e/
 │   ├── bookshelf-scan.test.js (8 tests)

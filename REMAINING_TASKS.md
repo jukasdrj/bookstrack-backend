@@ -24,7 +24,7 @@
 - Batch Processing (43 tests) - Parallel operations, progress tracking
 
 ### Phase 3: Handler Tests (21+ tests) 🟡 IN PROGRESS
-- ✅ Batch Enrichment (9 tests) - POST /api/enrichment/batch
+- ✅ Batch Enrichment (9 tests) - Handler function tests
 - ✅ CSV Import (12 tests) - POST /api/import/csv
 - 📝 Remaining: Scan handlers, Token refresh, Search handlers (34+ tests needed)
 

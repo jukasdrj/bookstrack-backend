@@ -3,6 +3,9 @@
 /**
  * Test script for enrichment WebSocket flow
  *
+ * DEPRECATED: This script tests the removed /api/enrichment/start endpoint.
+ * This file is kept for historical reference only.
+ *
  * Tests Task 6: Enrichment service integration with ProgressWebSocketDO
  */
 

@@ -98,8 +98,7 @@ export interface BookSearchResponse {
 }
 
 /**
- * Enrichment job response
- * Used by: /v1/api/enrichment/start
+ * Enrichment job response (legacy - no longer used)
  */
 export interface EnrichmentJobResponse {
   jobId: string;
@@ -198,7 +197,7 @@ export interface ParsedBookDTO {
 
 /**
  * Enrichment Job Initialization Response
- * Used by: POST /api/enrichment/start
+ * Used by: batch enrichment handler
  */
 export interface EnrichmentJobInitResponse {
   success: boolean;

@@ -57,8 +57,6 @@ bookstrack-backend/
 - `POST /api/scan-bookshelf?jobId={uuid}` → Single image bookshelf scan
 - `POST /api/scan-bookshelf/batch` → Batch multi-image scans
 - `POST /api/import/csv-gemini` → Gemini-powered CSV parsing
-- `POST /api/enrichment/batch` → Book metadata enrichment
-- `POST /api/enrichment/start` → Legacy enrichment endpoint (deprecated)
 
 #### Cache & Metrics
 - `GET /api/cache/metrics` → Cache performance metrics
@@ -120,7 +118,7 @@ Services (src/services/)
    - `enrichSingleBook()` - Individual book enrichment with provider fallback
    - `enrichMultipleBooks()` - Batch enrichment for search results
    - Multi-provider orchestration (Google Books → OpenLibrary)
-   - Used by `/api/enrichment/batch` and `/v1/search/*` endpoints
+   - Used by `/v1/search/*` endpoints
 
 3. **ai-scanner.js** (8,928 bytes)
    - `processBookshelfScan()` - Main bookshelf scanning pipeline

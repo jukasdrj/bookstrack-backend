@@ -7,8 +7,8 @@
  * - enrichMultipleBooks() - Multiple results for search queries
  *
  * Used by:
- * - /api/enrichment/batch (via batch-enrichment.js handler)
  * - /v1/search/* endpoints (title, ISBN, advanced search)
+ * - batch-enrichment.js handler (for processing multiple books)
  */
 
 import * as externalApis from './external-apis.js';

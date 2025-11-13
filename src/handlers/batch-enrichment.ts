@@ -14,15 +14,14 @@ import type { EnrichmentJobInitResponse, EnrichedBookDTO } from '../types/respon
 
 
 /**
- * Handle batch enrichment request (POST /api/enrichment/batch)
+ * Handle batch enrichment request
  *
  * Accepts a batch of books for background enrichment and returns immediately with 202 Accepted.
  * Actual enrichment happens asynchronously via ctx.waitUntil() with progress updates pushed via WebSocket.
  *
  * Used by:
- * - iOS CSV import enrichment
- * - iOS background enrichment queue
- * - Batch enrichment for large libraries
+ * - CSV import processing
+ * - Batch enrichment workflows
  *
  * @param {Request} request - Incoming request with JSON body { books: [{ title, author, isbn }], jobId }
  * @param {Object} env - Worker environment bindings

@@ -82,7 +82,6 @@
 | POST | `/api/scan-bookshelf?jobId={uuid}` | AI image scan | 202 Accepted |
 | POST | `/api/scan-bookshelf/batch` | Multiple images | 202 Accepted |
 | POST | `/api/import/csv-gemini` | CSV parsing | 202 Accepted |
-| POST | `/api/enrichment/batch` | Book enrichment | 202 Accepted |
 
 ### Real-Time Updates
 | Method | Path | Purpose |
