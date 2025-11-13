@@ -103,15 +103,21 @@ Add more repos to sync:
 
 ## Authentication
 
-The workflow uses `GH_TOKEN` secret (GitHub Actions default).
+The workflow uses `GITHUB_TOKEN` secret (automatically provided by GitHub Actions).
 
-**To set up (if needed):**
+**Permissions:** The workflow requires the following permissions to be granted to `GITHUB_TOKEN`:
+- `contents: write` - Read/write access to repository contents
+- `workflows: write` - Ability to update workflow files
+
+**Note:** By default, `GITHUB_TOKEN` only has access to the repository where the workflow runs. To push to other repositories (iOS, Flutter), you may need to use a Personal Access Token (PAT) with `repo` scope instead.
+
+**To use a PAT (if cross-repo push fails):**
 ```bash
-gh secret set GH_TOKEN --body "$(gh auth token)"
+gh secret set GITHUB_TOKEN --body "$(gh auth token)"
 ```
 
-**Required Scopes:**
-- `repo` - Read/write access to both backend and target repos
+**Required PAT Scopes:**
+- `repo` - Full control of private repositories (needed to push to other repos)
 
 ## What Gets Synced
 
@@ -172,9 +178,14 @@ The workflow only triggers on actual file changes.
 - Click to see logs
 
 **Check 4: GitHub Token**
-If token is missing or expired:
+If token is missing, expired, or lacks permissions:
 ```bash
-gh secret set GH_TOKEN --body "$(gh auth token)"
+# Option 1: Use a PAT with repo scope
+gh secret set GITHUB_TOKEN --body "$(gh auth token)"
+
+# Option 2: Grant workflow permissions
+# Go to: Settings → Actions → General → Workflow permissions
+# Select: "Read and write permissions"
 ```
 
 ### Sync to Flutter Not Running?

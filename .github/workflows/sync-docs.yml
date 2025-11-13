@@ -18,14 +18,14 @@ jobs:
 
       - name: Sync docs to iOS repo
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Configure git
           git config --global user.email "claude@anthropic.com"
           git config --global user.name "Claude Code"
           
-          # Clone iOS repo (shallow)
-          git clone --depth 1 https://github.com/jukasdrj/books-tracker-v1.git /tmp/ios-repo 2>&1 || {
+          # Clone iOS repo (shallow) with authentication
+          git clone --depth 1 https://x-access-token:${GITHUB_TOKEN}@github.com/jukasdrj/books-tracker-v1.git /tmp/ios-repo 2>&1 || {
             echo "⚠️  Could not clone iOS repo (may not exist yet)"
             exit 0
           }
@@ -41,15 +41,12 @@ jobs:
           cd /tmp/ios-repo
           if ! git diff --quiet docs/; then
             git add docs/API_README.md docs/QUICK_START.md
-            git commit -m "docs: sync API documentation from backend
-
-Synced from bookstrack-backend: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
-
-- API_README.md: Canonical contracts, endpoints, WebSocket protocol
-- QUICK_START.md: Quick reference for common tasks
-
-Keep in sync with: github.com/jukasdrj/bookstrack-backend/docs/"
-            git push origin main
+            git commit -m "docs: sync API documentation from backend" \
+              -m "Synced from bookstrack-backend: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}" \
+              -m "- API_README.md: Canonical contracts, endpoints, WebSocket protocol" \
+              -m "- QUICK_START.md: Quick reference for common tasks" \
+              -m "Keep in sync with: github.com/jukasdrj/bookstrack-backend/docs/"
+            git push https://x-access-token:${GITHUB_TOKEN}@github.com/jukasdrj/books-tracker-v1.git main
             echo "✅ iOS repo docs updated"
           else
             echo "ℹ️  No changes to sync to iOS repo"
@@ -65,14 +62,14 @@ Keep in sync with: github.com/jukasdrj/bookstrack-backend/docs/"
 
       - name: Sync docs to Flutter repo
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Configure git
           git config --global user.email "claude@anthropic.com"
           git config --global user.name "Claude Code"
           
-          # Clone Flutter repo (shallow)
-          git clone --depth 1 https://github.com/jukasdrj/bookstrack-flutter.git /tmp/flutter-repo 2>&1 || {
+          # Clone Flutter repo (shallow) with authentication
+          git clone --depth 1 https://x-access-token:${GITHUB_TOKEN}@github.com/jukasdrj/bookstrack-flutter.git /tmp/flutter-repo 2>&1 || {
             echo "⚠️  Could not clone Flutter repo (may not exist yet)"
             exit 0
           }
@@ -88,15 +85,12 @@ Keep in sync with: github.com/jukasdrj/bookstrack-backend/docs/"
           cd /tmp/flutter-repo
           if ! git diff --quiet docs/; then
             git add docs/API_README.md docs/QUICK_START.md
-            git commit -m "docs: sync API documentation from backend
-
-Synced from bookstrack-backend: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
-
-- API_README.md: Canonical contracts, endpoints, WebSocket protocol
-- QUICK_START.md: Quick reference for common tasks
-
-Keep in sync with: github.com/jukasdrj/bookstrack-backend/docs/"
-            git push origin main
+            git commit -m "docs: sync API documentation from backend" \
+              -m "Synced from bookstrack-backend: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}" \
+              -m "- API_README.md: Canonical contracts, endpoints, WebSocket protocol" \
+              -m "- QUICK_START.md: Quick reference for common tasks" \
+              -m "Keep in sync with: github.com/jukasdrj/bookstrack-backend/docs/"
+            git push https://x-access-token:${GITHUB_TOKEN}@github.com/jukasdrj/bookstrack-flutter.git main
             echo "✅ Flutter repo docs updated"
           else
             echo "ℹ️  No changes to sync to Flutter repo"
