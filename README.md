@@ -141,13 +141,112 @@ Configure these in GitHub repository settings → Settings → Secrets and varia
 
 ## Testing
 
-### Health Check
+### Running Tests
+
+```bash
+# Run all tests once
+npm test
+
+# Run tests in watch mode (re-runs on file changes)
+npm run test:watch
+
+# Run tests with UI (interactive browser-based test runner)
+npm run test:ui
+
+# Generate coverage report
+npm run test:coverage
+```
+
+### Coverage Goals & Current Status
+
+**Current Coverage:** ~48.6% overall (as of latest run)
+
+**Target Coverage by Component:**
+- **Validators:** 100% coverage (critical path)
+- **Normalizers:** 100% coverage (critical path)
+- **Auth:** 100% coverage (critical path)
+- **Cache:** 90%+ coverage
+- **External APIs:** 85%+ coverage
+- **Enrichment:** 85%+ coverage
+- **WebSocket DO:** 80%+ coverage
+- **Handlers:** 75%+ coverage
+- **Services:** 70%+ coverage
+
+**Weekly Targets:**
+- Week 1: 50% (unit tests)
+- Week 2: 60% (+ integration tests)
+- Week 3: 70% (+ handler tests)
+- Week 4: 75%+ (+ E2E + error tests)
+
+Coverage reports are generated in `coverage/` directory after running `npm run test:coverage`.
+
+### Writing New Tests
+
+**Test Structure:**
+- Unit tests: `tests/unit/`
+- Integration tests: `tests/integration/`
+- Handler tests: `tests/handlers/`
+- Normalizer tests: `tests/normalizers/`
+- Utility tests: `tests/utils/`
+
+**Test Naming Convention:**
+```javascript
+// File: tests/unit/my-module.test.js
+describe('MyModule', () => {
+  describe('functionName()', () => {
+    it('should handle valid input correctly', () => {
+      // Test implementation
+    });
+
+    it('should throw error for invalid input', () => {
+      // Test implementation
+    });
+  });
+});
+```
+
+**Mocking Guidelines:**
+
+See [TEST_IMPLEMENTATION_GUIDE.md](TEST_IMPLEMENTATION_GUIDE.md) for detailed mocking patterns.
+
+Quick reference:
+```javascript
+// Mock external APIs
+vi.mock('../src/services/external-apis.js', () => ({
+  searchGoogleBooks: vi.fn(),
+  searchOpenLibrary: vi.fn()
+}));
+
+// Mock Cloudflare Workers bindings
+const mockEnv = {
+  BOOK_CACHE: {
+    get: vi.fn(),
+    put: vi.fn()
+  },
+  GEMINI_API_KEY: 'test-key'
+};
+```
+
+**Test Requirements:**
+- All new features must include tests
+- Critical paths require 75%+ coverage
+- Tests must be deterministic (no flaky tests)
+- Use descriptive test names that explain the scenario
+- Keep tests focused and independent
+
+For complete testing strategy and implementation guide, see:
+- [TEST_PLAN.md](TEST_PLAN.md) - Complete testing strategy with 240+ test cases
+- [TEST_IMPLEMENTATION_GUIDE.md](TEST_IMPLEMENTATION_GUIDE.md) - 4-week phased implementation roadmap
+
+### Manual Testing
+
+#### Health Check
 
 ```bash
 curl https://api.oooefam.net/health
 ```
 
-### Search Endpoints
+#### Search Endpoints
 
 ```bash
 # Title search
@@ -160,7 +259,7 @@ curl "https://api.oooefam.net/v1/search/isbn?isbn=9780743273565"
 curl "https://api.oooefam.net/v1/search/advanced?title=1984&author=Orwell"
 ```
 
-### WebSocket Flow
+#### WebSocket Flow
 
 1. Connect to WebSocket:
 ```bash

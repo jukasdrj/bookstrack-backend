@@ -1,0 +1,159 @@
+name: Test & Coverage
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  test:
+    name: Run Tests & Generate Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+        continue-on-error: true
+
+      - name: Generate coverage summary
+        id: coverage-summary
+        run: |
+          # Extract coverage percentages from output
+          if [ -f coverage/coverage-summary.json ]; then
+            LINES=$(jq -r '.total.lines.pct' coverage/coverage-summary.json)
+            STATEMENTS=$(jq -r '.total.statements.pct' coverage/coverage-summary.json)
+            FUNCTIONS=$(jq -r '.total.functions.pct' coverage/coverage-summary.json)
+            BRANCHES=$(jq -r '.total.branches.pct' coverage/coverage-summary.json)
+            
+            echo "lines=$LINES" >> $GITHUB_OUTPUT
+            echo "statements=$STATEMENTS" >> $GITHUB_OUTPUT
+            echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
+            echo "branches=$BRANCHES" >> $GITHUB_OUTPUT
+            echo "coverage_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "coverage_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment PR with coverage
+        if: github.event_name == 'pull_request' && steps.coverage-summary.outputs.coverage_exists == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const lines = '${{ steps.coverage-summary.outputs.lines }}';
+            const statements = '${{ steps.coverage-summary.outputs.statements }}';
+            const functions = '${{ steps.coverage-summary.outputs.functions }}';
+            const branches = '${{ steps.coverage-summary.outputs.branches }}';
+            
+            const coverageEmoji = (pct) => {
+              const num = parseFloat(pct);
+              if (num >= 75) return '✅';
+              if (num >= 60) return '⚠️';
+              return '❌';
+            };
+            
+            const body = `## 📊 Test Coverage Report
+            
+            | Metric | Coverage | Status |
+            |--------|----------|--------|
+            | **Lines** | ${lines}% | ${coverageEmoji(lines)} |
+            | **Statements** | ${statements}% | ${coverageEmoji(statements)} |
+            | **Functions** | ${functions}% | ${coverageEmoji(functions)} |
+            | **Branches** | ${branches}% | ${coverageEmoji(branches)} |
+            
+            **Coverage Goals:**
+            - ✅ 75%+ for critical paths (validators, normalizers, auth)
+            - ⚠️ 60%+ for integration paths
+            - ❌ Below 60% needs improvement
+            
+            **Target by Week:**
+            - Week 1: 50% (unit tests)
+            - Week 2: 60% (+ integration tests)
+            - Week 3: 70% (+ handler tests)
+            - Week 4: 75%+ (+ E2E + error tests)
+            
+            ---
+            
+            📚 **Documentation:**
+            - [TEST_PLAN.md](https://github.com/${{ github.repository }}/blob/main/TEST_PLAN.md)
+            - [TEST_IMPLEMENTATION_GUIDE.md](https://github.com/${{ github.repository }}/blob/main/TEST_IMPLEMENTATION_GUIDE.md)
+            - [CONTRIBUTING.md](https://github.com/${{ github.repository }}/blob/main/CONTRIBUTING.md)
+            `;
+            
+            // Find existing coverage comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+            });
+            
+            const existingComment = comments.data.find(
+              comment => comment.user.type === 'Bot' && comment.body.includes('Test Coverage Report')
+            );
+            
+            if (existingComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: body
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: body
+              });
+            }
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: |
+            coverage/
+            !coverage/**/*.json
+          retention-days: 30
+
+      - name: Check coverage thresholds (informational)
+        if: steps.coverage-summary.outputs.coverage_exists == 'true'
+        run: |
+          LINES=${{ steps.coverage-summary.outputs.lines }}
+          
+          echo "📊 Coverage Summary:"
+          echo "   Lines: ${LINES}%"
+          echo "   Target: 75%"
+          
+          if (( $(echo "$LINES >= 75" | bc -l) )); then
+            echo "✅ Coverage meets target!"
+          elif (( $(echo "$LINES >= 60" | bc -l) )); then
+            echo "⚠️  Coverage is acceptable but below target"
+          else
+            echo "❌ Coverage is below 60% - please add more tests"
+          fi
+          
+          # Note: This is informational only, does not fail the build
+          # to avoid blocking PRs during the gradual coverage improvement phase
