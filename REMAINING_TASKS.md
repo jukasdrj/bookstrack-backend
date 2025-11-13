@@ -1,8 +1,39 @@
 # BooksTrack Backend - Remaining Test Tasks
 
-**Current Status:** Phase 2 Complete (193/240+ tests)
+**Current Status:** Phase 2 Complete (193 tests) + Phase 3 In Progress (21+ tests)
+**Total Passing:** 417 tests
 **Last Updated:** November 13, 2025
 **Target Completion:** November 20, 2025
+
+---
+
+## Progress Summary
+
+### Phase 1: Unit Tests (76 tests) ✅ COMPLETE
+- Validators (5 tests)
+- Normalizers (8 tests)
+- Authentication (10 tests)
+- Cache (4 tests)
+- Rate Limiter tests
+- Size Validator tests
+
+### Phase 2: Integration Tests (193 tests) ✅ COMPLETE
+- External APIs (34 tests) - Google Books, OpenLibrary, ISBNdb
+- Enrichment (57 tests) - Multi-provider pipeline with quality scoring
+- WebSocket DO (59 tests) - Token lifecycle, state management, concurrency
+- Batch Processing (43 tests) - Parallel operations, progress tracking
+
+### Phase 3: Handler Tests (21+ tests) 🟡 IN PROGRESS
+- ✅ Batch Enrichment (9 tests) - POST /api/enrichment/batch
+- ✅ CSV Import (12 tests) - POST /api/import/csv
+- 📝 Remaining: Scan handlers, Token refresh, Search handlers (34+ tests needed)
+
+### Phase 4: E2E & Error Tests (73+ tests) ❌ NOT STARTED
+- Workflows (20 tests)
+- Error scenarios (25 tests)
+- Edge cases (15 tests)
+- Performance (8 tests)
+- Security (5 tests)
 
 ---
 
