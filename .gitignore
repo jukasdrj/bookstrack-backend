@@ -16,6 +16,7 @@ build/
 # Test artifacts
 tests/assets/temp/
 coverage/
+test-results/
 
 # Development only
 scripts/dev/output/

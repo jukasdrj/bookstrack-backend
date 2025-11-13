@@ -141,13 +141,55 @@ Configure these in GitHub repository settings → Settings → Secrets and varia
 
 ## Testing
 
-### Health Check
+### Unit & Integration Tests
+
+The project uses [Vitest](https://vitest.dev) for testing with comprehensive test coverage (75%+ target for critical paths).
+
+#### Run All Tests
+```bash
+npm test
+```
+
+#### Watch Mode (auto-rerun on file changes)
+```bash
+npm run test:watch
+```
+
+#### Visual Test Dashboard
+```bash
+npm run test:ui
+```
+Opens an interactive UI at `http://localhost:51204/__vitest__/`
+
+#### Coverage Report
+```bash
+npm run test:coverage
+```
+Generates HTML coverage report in `coverage/` directory.
+
+#### Test Structure
+- `tests/unit/` - Unit tests for individual functions
+- `tests/integration/` - Integration tests for services and APIs
+- `tests/handlers/` - Handler-specific endpoint tests
+- `tests/mocks/` - Mock implementations for external dependencies
+- `tests/setup.js` - Global test configuration and utilities
+
+#### Mocking External APIs
+All external API calls (Google Books, OpenLibrary, ISBNdb, Gemini) are mocked in tests. See:
+- `tests/mocks/providers.js` - API provider mocks
+- `tests/mocks/gemini.js` - Gemini AI mocks
+- `tests/mocks/kv-cache.js` - KV storage mocks
+- `tests/mocks/durable-object.js` - Durable Object mocks
+
+### API Testing (Production/Staging)
+
+#### Health Check
 
 ```bash
 curl https://api.oooefam.net/health
 ```
 
-### Search Endpoints
+#### Search Endpoints
 
 ```bash
 # Title search
@@ -160,7 +202,7 @@ curl "https://api.oooefam.net/v1/search/isbn?isbn=9780743273565"
 curl "https://api.oooefam.net/v1/search/advanced?title=1984&author=Orwell"
 ```
 
-### WebSocket Flow
+#### WebSocket Flow
 
 1. Connect to WebSocket:
 ```bash

@@ -1,0 +1,158 @@
+name: Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  push:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Generate coverage report
+        run: npm run test:coverage
+        continue-on-error: true
+
+      - name: Check coverage thresholds
+        run: |
+          echo "Checking coverage thresholds (75% for critical paths)..."
+          
+          # Extract coverage percentages from JSON report
+          if [ -f coverage/coverage-summary.json ]; then
+            LINES=$(jq '.total.lines.pct' coverage/coverage-summary.json)
+            FUNCTIONS=$(jq '.total.functions.pct' coverage/coverage-summary.json)
+            BRANCHES=$(jq '.total.branches.pct' coverage/coverage-summary.json)
+            STATEMENTS=$(jq '.total.statements.pct' coverage/coverage-summary.json)
+            
+            echo "Coverage Summary:"
+            echo "  Lines: $LINES%"
+            echo "  Functions: $FUNCTIONS%"
+            echo "  Branches: $BRANCHES%"
+            echo "  Statements: $STATEMENTS%"
+            
+            # Check thresholds (75%)
+            THRESHOLD=75
+            FAILED=false
+            
+            if (( $(echo "$LINES < $THRESHOLD" | bc -l) )); then
+              echo "❌ Line coverage ($LINES%) is below threshold ($THRESHOLD%)"
+              FAILED=true
+            fi
+            
+            if (( $(echo "$FUNCTIONS < $THRESHOLD" | bc -l) )); then
+              echo "❌ Function coverage ($FUNCTIONS%) is below threshold ($THRESHOLD%)"
+              FAILED=true
+            fi
+            
+            if (( $(echo "$BRANCHES < $THRESHOLD" | bc -l) )); then
+              echo "❌ Branch coverage ($BRANCHES%) is below threshold ($THRESHOLD%)"
+              FAILED=true
+            fi
+            
+            if (( $(echo "$STATEMENTS < $THRESHOLD" | bc -l) )); then
+              echo "❌ Statement coverage ($STATEMENTS%) is below threshold ($THRESHOLD%)"
+              FAILED=true
+            fi
+            
+            if [ "$FAILED" = true ]; then
+              echo ""
+              echo "Coverage regression detected! Ensure critical paths maintain 75% coverage."
+              exit 1
+            else
+              echo "✅ All coverage thresholds met!"
+            fi
+          else
+            echo "⚠️  Coverage report not found. Skipping threshold check."
+          fi
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
+
+      - name: Comment PR with coverage
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            let coverageComment = '## 📊 Test Coverage Report\n\n';
+            
+            try {
+              const summaryPath = path.join(process.cwd(), 'coverage', 'coverage-summary.json');
+              
+              if (fs.existsSync(summaryPath)) {
+                const coverage = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+                const total = coverage.total;
+                
+                const formatPct = (pct) => {
+                  const emoji = pct >= 75 ? '✅' : pct >= 50 ? '⚠️' : '❌';
+                  return `${emoji} ${pct.toFixed(2)}%`;
+                };
+                
+                coverageComment += '| Metric | Coverage | Threshold |\n';
+                coverageComment += '|--------|----------|----------|\n';
+                coverageComment += `| Lines | ${formatPct(total.lines.pct)} | 75% |\n`;
+                coverageComment += `| Functions | ${formatPct(total.functions.pct)} | 75% |\n`;
+                coverageComment += `| Branches | ${formatPct(total.branches.pct)} | 75% |\n`;
+                coverageComment += `| Statements | ${formatPct(total.statements.pct)} | 75% |\n`;
+                coverageComment += '\n';
+                
+                if (total.lines.pct < 75 || total.functions.pct < 75 || 
+                    total.branches.pct < 75 || total.statements.pct < 75) {
+                  coverageComment += '⚠️ **Coverage is below the 75% threshold for critical paths.**\n\n';
+                  coverageComment += 'Please add tests to improve coverage before merging.\n';
+                } else {
+                  coverageComment += '✅ **All coverage thresholds met!**\n';
+                }
+              } else {
+                coverageComment += '⚠️ Coverage report not generated.\n';
+              }
+            } catch (error) {
+              coverageComment += `⚠️ Error reading coverage report: ${error.message}\n`;
+            }
+            
+            coverageComment += '\n---\n';
+            coverageComment += '**Test Commands:**\n';
+            coverageComment += '- `npm test` - Run all tests\n';
+            coverageComment += '- `npm run test:watch` - Watch mode\n';
+            coverageComment += '- `npm run test:ui` - Visual dashboard\n';
+            coverageComment += '- `npm run test:coverage` - Generate coverage report\n';
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: coverageComment
+            });
