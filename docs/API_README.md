@@ -77,9 +77,6 @@ Every DTO includes:
 - `GET /search/isbn?isbn={isbn}` - ISBN lookup (7-day cache)
 - `GET /search/advanced?title={title}&author={author}` - Multi-field search (6h cache, supports POST for compatibility)
 
-**Enrichment:**
-- `POST /api/enrichment/start` - **DEPRECATED** Use `/v1/enrichment/batch` instead
-
 **AI Scanning:**
 - `POST /api/scan-bookshelf?jobId={uuid}` - AI bookshelf scan with Gemini 2.0 Flash
 - `POST /api/scan-bookshelf/batch` - Batch scan (max 5 photos, parallel upload → sequential processing)

@@ -7,7 +7,6 @@ import * as authorSearch from './handlers/author-search.js';
 import { handleAdvancedSearch } from './handlers/search-handlers.js';
 import { handleBatchScan } from './handlers/batch-scan-handler.ts';
 import { handleCSVImport } from './handlers/csv-import.ts';
-import { handleBatchEnrichment } from './handlers/batch-enrichment.ts';
 import { processAuthorBatch } from './consumers/author-warming-consumer.js';
 import { handleScheduledArchival } from './handlers/scheduled-archival.js';
 import { handleScheduledAlerts } from './handlers/scheduled-alerts.js';
@@ -216,61 +215,6 @@ export default {
     // Enrichment API Endpoint
     // ========================================================================
 
-    // POST /api/enrichment/start - DEPRECATED: Redirect to /api/enrichment/batch
-    // This endpoint used old workIds format. iOS should migrate to /api/enrichment/batch with books array.
-    // For backward compatibility, we convert workIds to books format (assuming workId = title for now)
-    if (url.pathname === '/api/enrichment/start' && request.method === 'POST') {
-      console.warn('[DEPRECATED] /api/enrichment/start called. iOS should migrate to /api/enrichment/batch');
-
-      // Rate limiting: Prevent denial-of-wallet attacks
-      const rateLimitResponse = await checkRateLimit(request, env);
-      if (rateLimitResponse) return rateLimitResponse;
-
-      try {
-        const { jobId, workIds } = await request.json();
-
-        // Validate request
-        if (!jobId || !workIds || !Array.isArray(workIds)) {
-          return new Response(JSON.stringify({
-            error: 'Invalid request: jobId and workIds (array) required'
-          }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' }
-          });
-        }
-
-        if (workIds.length === 0) {
-          return new Response(JSON.stringify({
-            error: 'Invalid request: workIds array cannot be empty'
-          }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' }
-          });
-        }
-
-        // Convert workIds to books format (workId is treated as title for backward compat)
-        // TODO: iOS should send actual book data via /api/enrichment/batch instead
-        const books = workIds.map(id => ({ title: String(id) }));
-
-        // Redirect to new batch enrichment handler
-        const modifiedRequest = new Request(request, {
-          body: JSON.stringify({ books, jobId })
-        });
-
-        return handleBatchEnrichment(modifiedRequest, env, ctx);
-
-      } catch (error) {
-        console.error('Failed to start enrichment:', error);
-        return new Response(JSON.stringify({
-          error: 'Failed to start enrichment',
-          message: error.message
-        }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-    }
-
     // POST /api/enrichment/cancel - Cancel an in-flight enrichment job
     if (url.pathname === '/api/enrichment/cancel' && request.method === 'POST') {
       try {
@@ -391,15 +335,6 @@ export default {
     if (url.pathname === '/api/warming/dlq' && request.method === 'GET') {
       const { handleDLQMonitor } = await import('./handlers/dlq-monitor.js');
       return handleDLQMonitor(request, env);
-    }
-
-    // Batch enrichment endpoint (POST /api/enrichment/batch)
-    if (url.pathname === '/api/enrichment/batch' && request.method === 'POST') {
-      // Rate limiting: Prevent denial-of-wallet attacks
-      const rateLimitResponse = await checkRateLimit(request, env);
-      if (rateLimitResponse) return rateLimitResponse;
-
-      return handleBatchEnrichment(request, env, ctx);
     }
 
     // POST /api/scan-bookshelf - AI bookshelf scanner with WebSocket progress
@@ -1054,7 +989,6 @@ export default {
           'GET /search/author?q={author}&limit={n}&offset={n}&sortBy={sort} - Author bibliography (6h TTL)',
           'GET /search/advanced?title={title}&author={author} - Advanced search (primary method, 6h cache)',
           'POST /search/advanced - Advanced search (legacy support, JSON body)',
-          'POST /api/enrichment/start - Start batch enrichment job',
           'POST /api/enrichment/cancel - Cancel in-flight enrichment job (body: {jobId})',
           'POST /api/scan-bookshelf?jobId={id} - AI bookshelf scanner (upload image with Content-Type: image/*)',
           'POST /api/scan-bookshelf/batch - Batch AI scanner (body: {jobId, images: [{index, data}]})',

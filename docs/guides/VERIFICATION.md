@@ -66,7 +66,6 @@ GET https://api-worker.jukasdrj.workers.dev/health
     "GET /search/title?q={query}&maxResults={n}",
     "GET /search/isbn?isbn={isbn}&maxResults={n}",
     "POST /search/advanced",
-    "POST /api/enrichment/start",
     "POST /api/scan-bookshelf?jobId={id}",
     "GET /ws/progress?jobId={id}",
     "... external APIs ..."
@@ -105,28 +104,7 @@ Body: {"title":"1984","author":"Orwell"}
 - Internal function calls (no RPC)
 - Provider orchestration successful
 
-### 5. Enrichment Start
-```bash
-POST /api/enrichment/start
-Body: {"jobId":"verify-test-123","workIds":["test-1","test-2"]}
-```
-
-**Response:** ✅ 202 Accepted
-```json
-{
-  "jobId": "verify-test-123",
-  "status": "started",
-  "totalBooks": 2,
-  "message": "Enrichment job started. Connect to /ws/progress?jobId=verify-test-123 for real-time updates."
-}
-```
-
-**Notes:**
-- Correct 202 Accepted status
-- WebSocket connection message included
-- Background job initiated via `ctx.waitUntil()`
-
-### 6. Bookshelf AI Scan
+### 5. Bookshelf AI Scan
 ```bash
 POST /api/scan-bookshelf?jobId=verify-scan-456
 Content-Type: image/jpeg
@@ -233,7 +211,6 @@ api-worker
 - `/search/title`: ~300ms (first hit), ~10ms (cached)
 - `/search/isbn`: ~250ms (first hit), ~8ms (cached)
 - `/search/advanced`: ~400ms
-- `/api/enrichment/start`: ~80ms (202 response)
 - `/api/scan-bookshelf`: ~120ms (202 response)
 
 **Status:** ✅ All within acceptable range (<500ms for synchronous endpoints)

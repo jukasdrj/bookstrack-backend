@@ -49,7 +49,6 @@ ALLOWED_ORIGINS = [
 - `/api/scan-bookshelf/batch` - Batch bookshelf scanning
 - `/api/import/csv-gemini` - CSV import with AI parsing
 - `/v1/enrichment/batch` - Batch book enrichment
-- `/api/enrichment/start` - Legacy enrichment (deprecated)
 
 **Rate Limit Headers:**
 ```

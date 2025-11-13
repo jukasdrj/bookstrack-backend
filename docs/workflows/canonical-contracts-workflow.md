@@ -205,7 +205,9 @@ sequenceDiagram
 
 ---
 
-## Multi-Provider Enrichment (Future)
+## Multi-Provider Enrichment (Legacy Reference)
+
+> **Note:** This diagram references the deprecated `/api/enrichment/start` endpoint which has been removed. This section is kept for historical reference only.
 
 ```mermaid
 sequenceDiagram
@@ -397,13 +399,10 @@ flowchart TD
 - `/v1/search/isbn` - ISBN lookup
 - `/v1/search/advanced` - Multi-field search
 
-**2. Enrichment:**
-- `/api/enrichment/start` - Uses `/v1/search/isbn` internally
-
-**3. Bookshelf Scanner:**
+**2. Bookshelf Scanner:**
 - `/api/scan-bookshelf` - AI scanner uses `/v1/search/isbn` after detection
 
-**4. CSV Import:**
+**3. CSV Import:**
 - `/api/import/csv-gemini` - Uses `/v1/search/title` for metadata lookup
 
 ### iOS Services Consuming Canonical DTOs

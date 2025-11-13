@@ -6,7 +6,6 @@
  * - Title search
  * - ISBN search
  * - Advanced search
- * - Enrichment start
  * - AI scan (basic validation)
  *
  * Run with: npm test
@@ -334,98 +333,6 @@ describe('API Worker Integration Tests', () => {
 
       expect(response.status).toBe(200);
       expect((await response.json()).success).toBe(true);
-    });
-  });
-
-  // ========================================================================
-  // Enrichment Endpoint Tests
-  // ========================================================================
-
-  describe('POST /api/enrichment/start', () => {
-    it('should start enrichment job and return 202 Accepted', async () => {
-      const jobId = `test-enrich-${Date.now()}`;
-
-      const response = await fetch(`${BASE_URL}/api/enrichment/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jobId,
-          workIds: ['work-1', 'work-2', 'work-3']
-        })
-      });
-
-      expect(response.status).toBe(202);
-
-      const data = await response.json();
-      expect(data.jobId).toBe(jobId);
-      expect(data.status).toBe('started');
-      expect(data.totalBooks).toBe(3);
-      expect(data.message).toContain('ws/progress');
-    });
-
-    it('should return 400 if jobId is missing', async () => {
-      const response = await fetch(`${BASE_URL}/api/enrichment/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          workIds: ['work-1', 'work-2']
-        })
-      });
-
-      expect(response.status).toBe(400);
-
-      const data = await response.json();
-      expect(data.error).toBeTruthy();
-      expect(data.error).toContain('jobId');
-    });
-
-    it('should return 400 if workIds is missing', async () => {
-      const response = await fetch(`${BASE_URL}/api/enrichment/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jobId: 'test-123'
-        })
-      });
-
-      expect(response.status).toBe(400);
-
-      const data = await response.json();
-      expect(data.error).toBeTruthy();
-      expect(data.error).toContain('workIds');
-    });
-
-    it('should return 400 if workIds is not an array', async () => {
-      const response = await fetch(`${BASE_URL}/api/enrichment/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jobId: 'test-123',
-          workIds: 'not-an-array'
-        })
-      });
-
-      expect(response.status).toBe(400);
-
-      const data = await response.json();
-      expect(data.error).toBeTruthy();
-    });
-
-    it('should return 400 if workIds array is empty', async () => {
-      const response = await fetch(`${BASE_URL}/api/enrichment/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jobId: 'test-123',
-          workIds: []
-        })
-      });
-
-      expect(response.status).toBe(400);
-
-      const data = await response.json();
-      expect(data.error).toBeTruthy();
-      expect(data.error).toContain('empty');
     });
   });
 
