@@ -1,0 +1,37 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual deployment
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to api.oooefam.net
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+
+      - name: Health Check
+        run: |
+          sleep 5  # Wait for deployment to propagate
+          curl -f https://api.oooefam.net/health || exit 1
+
+      - name: Deployment Success
+        run: echo "✅ Successfully deployed to api.oooefam.net"
