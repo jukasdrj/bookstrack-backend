@@ -1,5 +1,15 @@
 name: 📚 Sync API Docs to Other Repos
 
+# This workflow syncs API documentation from backend to iOS/Flutter repos
+# 
+# Requirements:
+# - GITHUB_TOKEN secret must be a Personal Access Token (PAT) with 'repo' scope
+#   The default GITHUB_TOKEN doesn't have permission to push to other repositories
+# - To create a PAT: Settings → Developer settings → Personal access tokens → 
+#   Generate new token (classic) → Select 'repo' scope
+# - Add as secret: Repository Settings → Secrets → Actions → New repository secret
+#   Name: GITHUB_TOKEN (overwrites the default)
+
 on:
   push:
     branches: [main]
@@ -11,6 +21,8 @@ on:
 jobs:
   sync-to-ios:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,6 +66,8 @@ jobs:
 
   sync-to-flutter:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: vars.FLUTTER_REPO_ENABLED == 'true'
     steps:
       - uses: actions/checkout@v4
