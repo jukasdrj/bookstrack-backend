@@ -5,6 +5,32 @@ import { DurableObject } from 'cloudflare:workers';
  * One instance per jobId - stores WebSocket connection and forwards progress messages
  *
  * Migrated from progress-websocket-durable-object/src/index.js
+ *
+ * ⚠️ DEPRECATION NOTICE (Phase 2 - Architectural Refactoring)
+ * ============================================================
+ * This monolithic Durable Object is being replaced by a refactored architecture:
+ * 
+ * OLD (this file):
+ *   ProgressWebSocketDO - Handles WebSocket connections, state persistence, AND business logic
+ * 
+ * NEW (refactored):
+ *   - WebSocketConnectionDO - WebSocket connection management ONLY
+ *   - JobStateManagerDO - Job state persistence ONLY
+ *   - Services (csv-processor.js, etc.) - Business logic moved OUT of DOs
+ * 
+ * Migration:
+ *   - Set ENABLE_REFACTORED_DOS=true in wrangler.toml to use new architecture
+ *   - Default is false for backward compatibility during transition
+ *   - This file will be removed after full migration is complete
+ * 
+ * Benefits of new architecture:
+ *   - Separation of concerns (Single Responsibility Principle)
+ *   - Easier to test and maintain
+ *   - No business logic in Durable Object alarms
+ *   - Better scalability (connections and state scale independently)
+ * 
+ * See: /docs/REFACTORING_PLAN.md for migration guide
+ * ============================================================
  */
 // Pipeline-specific throttling configuration
 const THROTTLE_CONFIG = {
