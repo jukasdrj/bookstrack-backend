@@ -1,8 +1,13 @@
 /**
- * API Response Envelopes
+ * API Response Envelopes - DEPRECATED
  *
- * Universal structure for all API responses.
- * Discriminated union enables TypeScript type narrowing.
+ * @deprecated This file contains legacy response helper functions.
+ * Use `src/utils/response-builder.ts` instead for all response generation.
+ * 
+ * The helper functions createSuccessResponseObject and createErrorResponseObject
+ * have been moved to response-builder.ts for consolidation.
+ * 
+ * This file will be kept for type definitions only.
  */
 
 import type { DataProvider, ApiErrorCode } from './enums.js';
@@ -229,10 +234,13 @@ export interface EnrichedBookDTO {
 }
 
 // ============================================================================
-// HELPER FUNCTIONS
+// HELPER FUNCTIONS - DEPRECATED
 // ============================================================================
 
 /**
+ * @deprecated Use `createSuccessResponseObject` from `src/utils/response-builder.ts` instead.
+ * This function is kept for backward compatibility only.
+ * 
  * Create success response object (legacy format)
  * Returns SuccessResponse<T> object, not Response
  */
@@ -251,6 +259,9 @@ export function createSuccessResponseObject<T>(
 }
 
 /**
+ * @deprecated Use `createErrorResponseObject` from `src/utils/response-builder.ts` instead.
+ * This function is kept for backward compatibility only.
+ * 
  * Create error response object (legacy format)
  * Returns ErrorResponse object, not Response
  */
@@ -265,6 +276,10 @@ export function createErrorResponseObject(
     error: { message, code, details },
     meta: {
       timestamp: new Date().toISOString(),
+      ...meta,
+    },
+  };
+}
       ...meta,
     },
   };
