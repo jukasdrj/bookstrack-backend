@@ -603,126 +603,6 @@ export class ProgressWebSocketDO extends DurableObject {
   }
 
   /**
-   * RPC Method: Update progress for batch enrichment and CSV import
-   * Called by background processors to send progress updates to iOS client
-   *
-   * @param {number} progress - Progress value (0.0 to 1.0)
-   * @param {string} status - Human-readable status message
-   * @param {boolean} keepAlive - If true, this is a keep-alive ping (optional)
-   * @returns {Promise<{success: boolean}>}
-   */
-  async updateProgress(progress, status, keepAlive = false) {
-    console.log(`[${this.jobId}] updateProgress called`, { progress, status, keepAlive });
-
-    if (!this.webSocket) {
-      console.warn(`[${this.jobId}] No WebSocket connection available`);
-      return { success: false };
-    }
-
-    const message = {
-      type: 'progress',
-      jobId: this.jobId,
-      timestamp: Date.now(),
-      data: {
-        progress,
-        status,
-        keepAlive
-      }
-    };
-
-    try {
-      this.webSocket.send(JSON.stringify(message));
-      console.log(`[${this.jobId}] Progress update sent:`, { progress, status });
-      return { success: true };
-    } catch (error) {
-      console.error(`[${this.jobId}] Failed to send progress:`, error);
-      return { success: false };
-    }
-  }
-
-  /**
-   * RPC Method: Complete job successfully
-   * Called by background processors when job finishes successfully
-   *
-   * @param {Object} data - Result data (books, errors, successRate, etc.)
-   * @returns {Promise<{success: boolean}>}
-   */
-  async complete(data) {
-    console.log(`[${this.jobId}] complete called`, { data });
-
-    if (!this.webSocket) {
-      console.warn(`[${this.jobId}] No WebSocket connection available`);
-      return { success: false };
-    }
-
-    const message = {
-      type: 'complete',
-      jobId: this.jobId,
-      timestamp: Date.now(),
-      data
-    };
-
-    try {
-      this.webSocket.send(JSON.stringify(message));
-      console.log(`[${this.jobId}] Completion message sent`);
-
-      // Close connection after completion
-      setTimeout(() => {
-        if (this.webSocket) {
-          this.webSocket.close(1000, 'Job completed');
-          this.cleanup();
-        }
-      }, 1000); // 1 second delay to ensure message is delivered
-
-      return { success: true };
-    } catch (error) {
-      console.error(`[${this.jobId}] Failed to send completion:`, error);
-      return { success: false };
-    }
-  }
-
-  /**
-   * RPC Method: Fail job with error
-   * Called by background processors when job encounters an error
-   *
-   * @param {Object} errorData - Error details (error, suggestion, fallbackAvailable, etc.)
-   * @returns {Promise<{success: boolean}>}
-   */
-  async fail(errorData) {
-    console.log(`[${this.jobId}] fail called`, { errorData });
-
-    if (!this.webSocket) {
-      console.warn(`[${this.jobId}] No WebSocket connection available`);
-      return { success: false };
-    }
-
-    const message = {
-      type: 'error',
-      jobId: this.jobId,
-      timestamp: Date.now(),
-      data: errorData
-    };
-
-    try {
-      this.webSocket.send(JSON.stringify(message));
-      console.log(`[${this.jobId}] Error message sent`);
-
-      // Close connection after error
-      setTimeout(() => {
-        if (this.webSocket) {
-          this.webSocket.close(1000, 'Job failed');
-          this.cleanup();
-        }
-      }, 1000); // 1 second delay to ensure message is delivered
-
-      return { success: true };
-    } catch (error) {
-      console.error(`[${this.jobId}] Failed to send error:`, error);
-      return { success: false };
-    }
-  }
-
-  /**
    * RPC Method: Close WebSocket connection
    */
   async closeConnection(reason = 'Job completed') {
@@ -734,11 +614,16 @@ export class ProgressWebSocketDO extends DurableObject {
   }
 
   // =============================================================================
-  // V2 Factory-Based Methods (Unified Schema)
+  // WebSocket RPC Methods (Unified Schema v1.0.0)
   // =============================================================================
+  //
+  // All WebSocket messages follow the unified schema defined in types/websocket-messages.ts
+  // Legacy v1 methods (updateProgress, complete, fail) have been removed.
+  // See types/websocket-messages.ts for complete message type definitions.
+  //
 
   /**
-   * RPC Method: Send job_started message (v2 schema)
+   * RPC Method: Send job_started message
    *
    * @param {string} pipeline - Pipeline type ('batch_enrichment', 'csv_import', 'ai_scan')
    * @param {Object} payload - Job started payload (totalCount, estimatedDuration)
@@ -764,7 +649,7 @@ export class ProgressWebSocketDO extends DurableObject {
 
     try {
       this.webSocket.send(JSON.stringify(message));
-      console.log(`[${this.jobId}] Job started message sent (v2 schema)`);
+      console.log(`[${this.jobId}] Job started message sent`);
       return { success: true };
     } catch (error) {
       console.error(`[${this.jobId}] Failed to send job_started:`, error);
@@ -773,13 +658,13 @@ export class ProgressWebSocketDO extends DurableObject {
   }
 
   /**
-   * RPC Method: Send job_progress message (v2 schema)
+   * RPC Method: Send job_progress message
    *
    * @param {string} pipeline - Pipeline type
    * @param {Object} payload - Progress payload (progress, status, processedCount, currentItem, keepAlive)
    * @returns {Promise<{success: boolean}>}
    */
-  async updateProgressV2(pipeline, payload) {
+  async updateProgress(pipeline, payload) {
     if (!this.webSocket) {
       console.warn(`[${this.jobId}] No WebSocket connection available`);
       return { success: false };
@@ -800,7 +685,7 @@ export class ProgressWebSocketDO extends DurableObject {
     try {
       this.webSocket.send(JSON.stringify(message));
       if (!payload.keepAlive) {
-        console.log(`[${this.jobId}] Progress update sent (v2 schema): ${payload.progress}`);
+        console.log(`[${this.jobId}] Progress update sent: ${payload.progress}`);
       }
       return { success: true };
     } catch (error) {
@@ -810,13 +695,13 @@ export class ProgressWebSocketDO extends DurableObject {
   }
 
   /**
-   * RPC Method: Send job_complete message (v2 schema)
+   * RPC Method: Send job_complete message
    *
    * @param {string} pipeline - Pipeline type
    * @param {Object} payload - Completion payload (pipeline-specific)
    * @returns {Promise<{success: boolean}>}
    */
-  async completeV2(pipeline, payload) {
+  async complete(pipeline, payload) {
     if (!this.webSocket) {
       console.warn(`[${this.jobId}] No WebSocket connection available`);
       return { success: false };
@@ -837,7 +722,7 @@ export class ProgressWebSocketDO extends DurableObject {
 
     try {
       this.webSocket.send(JSON.stringify(message));
-      console.log(`[${this.jobId}] Job complete message sent (v2 schema)`);
+      console.log(`[${this.jobId}] Job complete message sent`);
 
       // Close connection after completion
       setTimeout(() => {

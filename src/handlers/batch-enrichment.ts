@@ -212,7 +212,7 @@ async function processBatchEnrichment(books, doStub, env, jobId) {
           : `Enriching (${completed}/${total}): ${title}`;
 
         // Call DO with pipeline and payload (DO constructs the message envelope)
-        await doStub.updateProgressV2('batch_enrichment', {
+        await doStub.updateProgress('batch_enrichment', {
           progress,
           status,
           processedCount: completed,
@@ -228,7 +228,7 @@ async function processBatchEnrichment(books, doStub, env, jobId) {
     const duration = Date.now() - startTime;
 
     // Call DO with pipeline and payload (DO constructs the message envelope)
-    await doStub.completeV2('batch_enrichment', {
+    await doStub.complete('batch_enrichment', {
       totalProcessed,
       successCount,
       failureCount,
