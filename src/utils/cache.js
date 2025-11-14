@@ -76,6 +76,10 @@ export async function setCached(key, value, ttl, env) {
 
 /**
  * Generate cache key from prefix and parameters
+ * 
+ * @deprecated Use CacheKeyFactory from '../services/cache-key-factory.js' instead.
+ * This function is kept for backward compatibility but should not be used in new code.
+ * 
  * @param {string} prefix - Cache key prefix (e.g., 'search:title', 'search:isbn')
  * @param {Object} params - Key-value pairs to include in cache key
  * @returns {string} Generated cache key

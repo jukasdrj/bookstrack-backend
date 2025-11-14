@@ -8,7 +8,7 @@
  */
 
 import * as externalApis from "../services/external-apis.ts";
-import { setCached, generateCacheKey } from "../utils/cache.js";
+import { setCached } from "../utils/cache.js";
 import { UnifiedCacheService } from "../services/unified-cache.js";
 import { writeCacheMetrics } from "../utils/analytics.js";
 import { CacheKeyFactory } from "../services/cache-key-factory.js";
