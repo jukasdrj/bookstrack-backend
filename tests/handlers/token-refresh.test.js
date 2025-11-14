@@ -342,7 +342,8 @@ describe("Token Refresh Handler (/api/token/refresh)", () => {
       expect(response.headers.get("content-type")).toContain(
         "application/json",
       );
-      // CORS headers should be present (implementation-dependent)
+      // Verify CORS headers are present
+      expect(response.headers.get("access-control-allow-origin")).toBe("*");
     });
 
     it("should include CORS headers in error response", async () => {
@@ -364,6 +365,26 @@ describe("Token Refresh Handler (/api/token/refresh)", () => {
       expect(response.headers.get("content-type")).toContain(
         "application/json",
       );
+      // Verify CORS headers are present in error responses
+      expect(response.headers.get("access-control-allow-origin")).toBe("*");
+    });
+  });
+
+  describe("Error Handling - Invalid JSON", () => {
+    it("should return 500 for invalid JSON request body", async () => {
+      // Create a request with malformed JSON
+      const request = new Request("http://localhost/api/token/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{ invalid json here",
+      });
+
+      const response = await handleTokenRefresh(request, mockEnv);
+
+      expect(response.status).toBe(500);
+      const body = await response.json();
+      expect(body.error).toBeDefined();
+      expect(body.error).toContain("Failed to refresh token");
     });
   });
 
