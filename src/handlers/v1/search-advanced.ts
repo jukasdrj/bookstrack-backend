@@ -9,8 +9,9 @@ import type { ApiResponse, BookSearchResponse } from '../../types/responses.js';
 import { createSuccessResponseObject, createErrorResponseObject } from '../../types/responses.js';
 import { enrichMultipleBooks } from '../../services/enrichment.ts';
 import { normalizeTitle, normalizeAuthor } from '../../utils/normalization.js';
-import { setCached, generateCacheKey } from '../../utils/cache.js';
+import { setCached } from '../../utils/cache.js';
 import { UnifiedCacheService } from '../../services/unified-cache.js';
+import { CacheKeyFactory } from '../../services/cache-key-factory.js';
 import { extractUniqueAuthors, removeAuthorsFromWorks } from '../../utils/response-transformer.js';
 
 export async function handleSearchAdvanced(
@@ -39,9 +40,10 @@ export async function handleSearchAdvanced(
     const normalizedAuthor = hasAuthor ? normalizeAuthor(author) : '';
 
     // Check cache first
-    const cacheKey = generateCacheKey('v1:advanced', {
-      title: normalizedTitle,
-      author: normalizedAuthor
+    const cacheKey = CacheKeyFactory.authorSearch({
+      query: normalizedTitle,
+      filters: { author: normalizedAuthor },
+      sortBy: 'relevance',
     });
 
     const cache = new UnifiedCacheService(env, ctx);

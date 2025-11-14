@@ -1,16 +1,11 @@
 import { searchByTitle } from '../handlers/book-search.js';
 import { searchByAuthor } from '../handlers/author-search.js';
-import { generateCacheKey, setCached } from '../utils/cache.js';
 
 /**
  * Author Warming Consumer - Processes queued authors
  *
- * CRITICAL: This consumer MUST generate cache keys identical to search handlers
- * to ensure warmed cache entries are actually used by search endpoints.
- *
- * Cache key alignment (per 2025-10-29-cache-warming-fix.md):
- * - Title search: search:title:maxresults=20&title={normalizedTitle}
- * - Author search: auto-search:{queryB64}:{paramsB64}
+ * CRITICAL: This consumer calls the search handlers directly to ensure cache keys
+ * are identical and warmed cache entries are used by the search endpoints.
  *
  * @param {Object} batch - Batch of queue messages
  * @param {Object} env - Worker environment bindings
