@@ -8,7 +8,7 @@
  */
 
 import { scanImageWithGemini } from '../providers/gemini-provider.js';
-import { createSuccessResponse, createErrorResponse } from '../utils/api-responses.js';
+import { createSuccessResponse, createErrorResponse, ErrorCodes } from '../utils/response-builder.js';
 import { enrichBooksParallel } from '../services/parallel-enrichment.js';
 import { handleSearchAdvanced } from './v1/search-advanced.js';
 import type { DetectedBookDTO, BookshelfScanInitResponse, BoundingBox } from '../types/responses.js';
@@ -61,33 +61,33 @@ export async function handleBatchScan(request, env, ctx) {
 
     // Validation
     if (!jobId || !images || !Array.isArray(images)) {
-      return createErrorResponse('Invalid request: jobId and images array required', 400, 'E_INVALID_REQUEST');
+      return createErrorResponse('Invalid request: jobId and images array required', 400, ErrorCodes.INVALID_REQUEST);
     }
 
     if (images.length === 0) {
-      return createErrorResponse('At least one image required', 400, 'E_INVALID_IMAGES');
+      return createErrorResponse('At least one image required', 400, ErrorCodes.INVALID_REQUEST);
     }
 
     if (images.length > MAX_PHOTOS_PER_BATCH) {
-      return createErrorResponse(`Batch size exceeds maximum ${MAX_PHOTOS_PER_BATCH} photos`, 400, 'E_INVALID_IMAGES');
+      return createErrorResponse(`Batch size exceeds maximum ${MAX_PHOTOS_PER_BATCH} photos`, 400, ErrorCodes.BATCH_TOO_LARGE);
     }
 
     // Validate R2 binding
     if (!env.BOOKSHELF_IMAGES) {
       console.error('R2 binding BOOKSHELF_IMAGES not configured');
-      return createErrorResponse('Storage not configured', 500, 'E_INTERNAL');
+      return createErrorResponse('Storage not configured', 500, ErrorCodes.INTERNAL_ERROR);
     }
 
     // Validate image structure and size
     for (const img of images) {
       if (typeof img.index !== 'number' || !img.data) {
-        return createErrorResponse('Each image must have index and data fields', 400, 'E_INVALID_IMAGES');
+        return createErrorResponse('Each image must have index and data fields', 400, ErrorCodes.INVALID_REQUEST);
       }
 
       // Validate base64 image size (4/3 of decoded size due to base64 encoding)
       const estimatedSize = (img.data.length * 3) / 4;
       if (estimatedSize > MAX_IMAGE_SIZE) {
-        return createErrorResponse(`Image ${img.index} exceeds maximum size of ${MAX_IMAGE_SIZE / 1_000_000}MB`, 413, 'E_INVALID_IMAGES');
+        return createErrorResponse(`Image ${img.index} exceeds maximum size of ${MAX_IMAGE_SIZE / 1_000_000}MB`, 413, ErrorCodes.FILE_TOO_LARGE);
       }
     }
 
@@ -119,7 +119,7 @@ export async function handleBatchScan(request, env, ctx) {
 
   } catch (error) {
     console.error('Batch scan error:', error);
-    return createErrorResponse('Internal server error', 500, 'E_INTERNAL');
+    return createErrorResponse('Internal server error', 500, ErrorCodes.INTERNAL_ERROR);
   }
 }
 

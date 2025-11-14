@@ -11,7 +11,7 @@ import { validateCSV } from '../utils/csv-validator.js';
 import { buildCSVParserPrompt, PROMPT_VERSION } from '../prompts/csv-parser-prompt.js';
 import { generateCSVCacheKey } from '../utils/cache-keys.js';
 import { parseCSVWithGemini } from '../providers/gemini-csv-provider.js';
-import { createSuccessResponseObject, createErrorResponseObject } from '../types/responses.js';
+import { createSuccessResponseObject, createErrorResponseObject, ErrorCodes } from '../utils/response-builder.js';
 import type { CSVImportInitResponse } from '../types/responses.js';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -34,7 +34,7 @@ export async function handleCSVImport(request, env, ctx) {
 
     if (!csvFile) {
       return Response.json(
-        createErrorResponseObject('No file provided', 'E_MISSING_FILE'),
+        createErrorResponseObject('No file provided', ErrorCodes.MISSING_PARAMETER),
         { status: 400 }
       );
     }
@@ -42,7 +42,7 @@ export async function handleCSVImport(request, env, ctx) {
     // Check file size
     if (csvFile.size > MAX_FILE_SIZE) {
       return Response.json(
-        createErrorResponseObject('CSV file too large (max 10MB)', 'E_FILE_TOO_LARGE', {
+        createErrorResponseObject('CSV file too large (max 10MB)', ErrorCodes.FILE_TOO_LARGE, {
           suggestion: 'Try splitting your CSV into smaller files or removing unnecessary columns'
         }),
         { status: 413 }
@@ -85,7 +85,7 @@ export async function handleCSVImport(request, env, ctx) {
 
   } catch (error) {
     return Response.json(
-      createErrorResponseObject(error.message, 'E_INTERNAL'),
+      createErrorResponseObject(error.message, ErrorCodes.INTERNAL_ERROR),
       { status: 500 }
     );
   }
