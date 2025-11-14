@@ -8,6 +8,7 @@ import type {
 } from './types/harvest-types';
 import * as fs from 'fs';
 import * as path from 'path';
+import { CacheKeyFactory } from '../services/cache-key-factory.js';
 
 /**
  * Load and parse all CSV files from docs/testImages/csv-expansion/
@@ -279,7 +280,7 @@ async function harvestSingleBook(
     }
 
     // Check if already cached
-    const kvKey = `cover:${isbn}`;
+    const kvKey = CacheKeyFactory.coverImage(isbn);
     const existing = await env.KV_CACHE.get(kvKey);
 
     if (existing) {
