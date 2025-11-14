@@ -13,22 +13,26 @@ import { getCorsHeaders } from "../middleware/cors.js";
  * @param data - Data to serialize as JSON
  * @param status - HTTP status code (default: 200)
  * @param corsRequest - Optional request for CORS header generation
+ * @param extraHeaders - Optional additional headers to include
  * @returns Response object with JSON content
  *
  * @example
  * return jsonResponse({ success: true, data: books });
  * return jsonResponse(errorData, 400, request);
+ * return jsonResponse(data, 405, null, { 'Allow': 'GET, POST' });
  */
 export function jsonResponse(
   data: any,
   status: number = 200,
   corsRequest: Request | null = null,
+  extraHeaders: Record<string, string> = {},
 ): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
-      ...getCorsHeaders(corsRequest),
+      ...(corsRequest ? getCorsHeaders(corsRequest) : {}),
       "Content-Type": "application/json",
+      ...extraHeaders,
     },
   });
 }
@@ -40,19 +44,23 @@ export function jsonResponse(
  * @param message - Human-readable error message
  * @param status - HTTP status code (default: 400)
  * @param corsRequest - Optional request for CORS headers
+ * @param extraHeaders - Optional additional headers to include
  * @returns Response object with error structure
  *
  * @example
  * return errorResponse('MISSING_FIELD', 'ISBN is required', 400, request);
+ * return errorResponse('METHOD_NOT_ALLOWED', 'Use GET or POST', 405, null, { 'Allow': 'GET, POST' });
  */
 export function errorResponse(
   code: string,
   message: string,
   status: number = 400,
   corsRequest: Request | null = null,
+  extraHeaders: Record<string, string> = {},
 ): Response {
   return jsonResponse(
     {
+      success: false,
       error: {
         code,
         message,
@@ -60,6 +68,7 @@ export function errorResponse(
     },
     status,
     corsRequest,
+    extraHeaders,
   );
 }
 

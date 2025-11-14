@@ -32,7 +32,6 @@ import {
   jsonResponse,
   errorResponse,
   acceptedResponse,
-  successResponse,
   notFoundResponse,
 } from "./utils/response-builder.ts";
 
@@ -54,12 +53,10 @@ export default {
 
     // Handle OPTIONS preflight requests (CORS)
     if (request.method === "OPTIONS") {
-      const response = new Response(null, { status: 204 });
-      // Add CORS headers
-      Object.entries(getCorsHeaders(request)).forEach(([key, value]) => {
-        response.headers.set(key, value);
+      return new Response(null, {
+        status: 204,
+        headers: getCorsHeaders(request),
       });
-      return response;
     }
 
     // Route WebSocket connections to the Durable Object
@@ -752,6 +749,7 @@ export default {
             "Use GET with query parameters or POST with JSON body",
             405,
             null,
+            { Allow: "GET, POST" },
           );
         }
 
