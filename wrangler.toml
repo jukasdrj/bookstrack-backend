@@ -111,10 +111,18 @@ binding = "AI"
 name = "PROGRESS_WEBSOCKET_DO"
 class_name = "ProgressWebSocketDO"
 
+[[durable_objects.bindings]]
+name = "RATE_LIMITER_DO"
+class_name = "RateLimiterDO"
+
 # Durable Object migrations
 [[migrations]]
 tag = "v1"
 new_classes = ["ProgressWebSocketDO"]
+
+[[migrations]]
+tag = "v2"
+new_classes = ["RateLimiterDO"]
 
 # Analytics Engine (merged from books-api-proxy and bookshelf-ai-worker)
 [[analytics_engine_datasets]]
