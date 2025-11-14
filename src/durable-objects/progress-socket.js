@@ -1,10 +1,40 @@
 import { DurableObject } from 'cloudflare:workers';
 
 /**
- * Durable Object for managing WebSocket connections per job
- * One instance per jobId - stores WebSocket connection and forwards progress messages
+ * ProgressWebSocketDO - Durable Object for Real-Time Job Progress via WebSocket
  *
- * Migrated from progress-websocket-durable-object/src/index.js
+ * **Purpose:**
+ * Manages WebSocket connections for long-running asynchronous jobs (batch enrichment,
+ * CSV imports, AI bookshelf scans). Each job gets its own Durable Object instance
+ * identified by `jobId`, providing isolated state and guaranteed message delivery.
+ *
+ * **Architecture:**
+ * - One Durable Object instance per `jobId` (e.g., DO instance for job "abc123")
+ * - Stores WebSocket connection, job state, and authentication tokens
+ * - Forwards progress messages from background workers to connected iOS client
+ * - Implements throttling to reduce storage writes and costs
+ *
+ * **Message Schema:**
+ * All messages follow the unified schema defined in `types/websocket-messages.ts`.
+ * Legacy v1 RPC methods have been removed. See WebSocket documentation for details.
+ *
+ * **Security:**
+ * - Token-based authentication required for WebSocket upgrade
+ * - Tokens expire after 2 hours, can be refreshed within 30-minute window
+ * - Each jobId has unique auth token stored in Durable Object storage
+ *
+ * **Performance Optimizations:**
+ * - Throttled state persistence (configurable per pipeline type)
+ * - Parallel storage reads during WebSocket upgrade (100-200ms improvement)
+ * - Keep-alive pings to prevent connection timeouts
+ *
+ * **Migration Note:**
+ * This file previously contained v1 and v2 RPC methods. The v1 methods
+ * (updateProgress, complete, fail) have been removed. Only the unified
+ * schema methods remain (without V2 suffix).
+ *
+ * @see types/websocket-messages.ts - Unified message schema definitions
+ * @see handlers/batch-enrichment.ts - Example usage from job processor
  */
 // Pipeline-specific throttling configuration
 const THROTTLE_CONFIG = {
