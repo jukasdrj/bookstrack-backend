@@ -1,6 +1,7 @@
 import { searchByTitle } from '../handlers/book-search.js';
 import { searchByAuthor } from '../handlers/author-search.js';
 import { generateCacheKey, setCached } from '../utils/cache.js';
+import { enrichBooksParallel } from '../services/parallel-enrichment.js';
 
 /**
  * Author Warming Consumer - Processes queued authors
@@ -50,22 +51,25 @@ export async function processAuthorBatch(batch, env, ctx) {
 
       // 3. STEP 2: Extract titles and warm each one using searchByTitle handler
       // This ensures canonical DTO format and correct cache keys (with maxResults param)
+      // Use parallel processing with concurrency limit (default: 5) to prevent API rate limiting
       let titlesWarmed = 0;
-      for (const work of authorResult.works) {
-        try {
+      await enrichBooksParallel(
+        authorResult.works,
+        async (work) => {
           // Use searchByTitle to get full orchestrated data (Google + OpenLibrary)
           // This will automatically cache with correct key: search:title:maxresults=20&title={normalized}
           await searchByTitle(work.title, { maxResults: 20 }, env, ctx);
-          titlesWarmed++;
-
-          // Rate limiting: Small delay between title searches
-          await sleep(100); // 100ms between titles
-
-        } catch (titleError) {
-          console.error(`Failed to warm title "${work.title}":`, titleError);
-          // Continue with next title (don't fail entire batch)
-        }
-      }
+          return work;
+        },
+        async (completed, total, title, hasError) => {
+          if (!hasError) {
+            titlesWarmed++;
+          }
+          // Progress logging for visibility
+          console.log(`Warming cache: ${completed}/${total} titles (${title})`);
+        },
+        5 // Concurrency limit: 5 concurrent requests to prevent API throttling
+      );
 
       console.log(`Warmed ${titlesWarmed} titles for author "${author}"`);
 
@@ -104,13 +108,4 @@ export async function processAuthorBatch(batch, env, ctx) {
       }
     }
   }
-}
-
-/**
- * Sleep utility for rate limiting
- * @param {number} ms - Milliseconds to sleep
- * @returns {Promise<void>}
- */
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
 }

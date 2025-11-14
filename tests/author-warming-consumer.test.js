@@ -159,8 +159,60 @@ describe('processAuthorBatch', () => {
     expect(batch.messages[0].retry).toHaveBeenCalled();
     expect(batch.messages[0].ack).not.toHaveBeenCalled();
   });
-});
 
-// Note: This implementation now uses searchByAuthor and searchByTitle handlers
-// to ensure cache key consistency and canonical DTO format.
-// Per 2025-10-29-cache-warming-fix.md design doc.
+  it('should process titles in parallel with concurrency limit', async () => {
+    const { searchByAuthor } = await import('../src/handlers/author-search.js');
+    const { searchByTitle } = await import('../src/handlers/book-search.js');
+
+    // Mock author with 10 works to test parallel processing
+    searchByAuthor.mockResolvedValueOnce({
+      success: true,
+      provider: 'openlibrary',
+      author: {
+        name: 'Prolific Author',
+        openLibraryKey: '/authors/OL12345A',
+        totalWorks: 10
+      },
+      works: Array.from({ length: 10 }, (_, i) => ({
+        title: `Book ${i + 1}`,
+        firstPublicationYear: 2000 + i
+      })),
+      cached: false
+    });
+
+    // Track concurrent calls to searchByTitle
+    let maxConcurrent = 0;
+    let currentConcurrent = 0;
+    searchByTitle.mockImplementation(async () => {
+      currentConcurrent++;
+      maxConcurrent = Math.max(maxConcurrent, currentConcurrent);
+      
+      // Simulate async work
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
+      currentConcurrent--;
+      return { success: true, items: [] };
+    });
+
+    const batch = {
+      messages: [
+        {
+          body: { author: 'Prolific Author', depth: 0, source: 'test', jobId: 'job-parallel' },
+          ack: vi.fn(),
+          retry: vi.fn()
+        }
+      ]
+    };
+
+    await processAuthorBatch(batch, env, ctx);
+
+    // Verify all titles were processed
+    expect(searchByTitle).toHaveBeenCalledTimes(10);
+    
+    // Verify concurrency limit was respected (should be 5)
+    expect(maxConcurrent).toBeGreaterThan(1); // Parallel processing
+    expect(maxConcurrent).toBeLessThanOrEqual(5); // Respects concurrency limit
+    
+    expect(batch.messages[0].ack).toHaveBeenCalled();
+  });
+});
