@@ -5,6 +5,19 @@
  * Reduces code duplication and improves testability.
  */
 
+import type {
+  DurableObjectNamespace,
+  DurableObjectStub,
+} from "@cloudflare/workers-types";
+
+/**
+ * Minimal environment interface for Durable Object access
+ * Contains only the PROGRESS_WEBSOCKET_DO binding needed by these utilities
+ */
+interface EnvWithProgressDO {
+  PROGRESS_WEBSOCKET_DO: DurableObjectNamespace;
+}
+
 /**
  * Get a stub for the Progress WebSocket Durable Object
  *
@@ -19,7 +32,10 @@
  * const stub = getProgressDOStub('job-123', env)
  * await stub.updateProgress(50, 'Processing...')
  */
-export function getProgressDOStub(jobId: string, env: any) {
+export function getProgressDOStub(
+  jobId: string,
+  env: EnvWithProgressDO,
+): DurableObjectStub {
   const id = env.PROGRESS_WEBSOCKET_DO.idFromName(jobId);
   return env.PROGRESS_WEBSOCKET_DO.get(id);
 }
