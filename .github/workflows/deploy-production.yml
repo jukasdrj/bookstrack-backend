@@ -26,12 +26,31 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+          command: npx wrangler deploy
 
-      - name: Health Check
+      - name: Health Check with Retry
         run: |
-          sleep 5  # Wait for deployment to propagate
-          curl -f https://api-worker.jukasdrj.workers.dev/health || exit 1
+          echo "⏳ Waiting for deployment to propagate globally..."
+          sleep 10  # Initial wait for global propagation
+
+          # Retry health check up to 5 times
+          for i in {1..5}; do
+            echo "🔍 Health check attempt $i/5..."
+
+            if curl -sf https://api-worker.jukasdrj.workers.dev/health > /dev/null; then
+              echo "✅ Health check passed on attempt $i"
+              exit 0
+            fi
+
+            if [ $i -lt 5 ]; then
+              echo "⏳ Attempt $i failed, retrying in 5 seconds..."
+              sleep 5
+            fi
+          done
+
+          echo "❌ Health check failed after 5 attempts"
+          echo "Deployment may have succeeded but health endpoint is not responding"
+          exit 1
 
       - name: Deployment Success
         run: |

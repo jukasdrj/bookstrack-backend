@@ -386,49 +386,89 @@ throw new Error('External API call failed')
 
 ### Autonomous Project Agents
 
-#### 🚀 cf-ops-monitor (Deployment & Observability)
-**Location:** `.claude/skills/cf-ops-monitor/`
-**Invoke with:** `/skill cf-ops-monitor` or automatically via hooks
+#### 🎯 project-manager (Orchestration & Delegation)
+**Location:** `.claude/skills/project-manager/`
+**Invoke with:** `/skill project-manager` or automatically for complex tasks
 
 **Capabilities:**
-- Execute `wrangler deploy` with health checks
-- Stream and analyze logs with `wrangler tail`
-- Monitor error rates and auto-rollback on failures
-- Track KV cache hit rates and Durable Object metrics
-- Cost optimization (billable operations tracking)
-- Performance profiling (cold starts, latency)
+- Analyze complex requests and delegate to specialists
+- Coordinate multi-phase workflows (review → deploy → monitor)
+- Maintain context across agent handoffs
+- Make strategic decisions (fast path vs. careful path)
+- Select optimal models for Zen MCP tasks
 
 **Use when:**
-- Deploying to production
-- Investigating 5xx errors or slow responses
-- Analyzing WebSocket disconnections
-- Monitoring cache performance
-- Tracking API quota usage (Google Books, ISBNdb, Gemini)
+- Complex multi-agent workflows needed
+- Unsure which specialist to invoke
+- Strategic planning required
+- Coordinating deployment + review + monitoring
 
-**Autonomy:** High - can deploy, monitor, and rollback without human intervention
+**Autonomy:** High - can delegate and coordinate autonomously
+
+**Delegates to:**
+- `cloudflare-agent` for deployment/monitoring
+- `zen-mcp-master` for code review/security/debugging
 
 ---
 
-#### ✅ cf-code-reviewer (Code Quality & Best Practices)
-**Location:** `.claude/skills/cf-code-reviewer/`
-**Invoke with:** `/skill cf-code-reviewer` or automatically on code changes
+#### ☁️ cloudflare-agent (Deployment & Monitoring)
+**Location:** `.claude/skills/cloudflare-agent/`
+**Invoke with:** `/skill cloudflare-agent` or automatically via hooks
 
 **Capabilities:**
-- Review Workers-specific patterns (env bindings, KV cache, Durable Objects)
-- Detect anti-patterns (blocking event loop, missing timeouts)
-- Enforce security (input validation, secrets management, CORS)
-- Validate canonical response format compliance
-- Check service layer separation
-- Performance analysis (async patterns, memory efficiency)
+- Execute `npx wrangler deploy` with health checks
+- Stream and analyze logs with `npx wrangler tail`
+- Monitor error rates and auto-rollback on failures
+- Inspect KV cache and Durable Object instances
+- Track performance metrics (latency, cold starts)
+- Manage secrets and deployment versions
 
 **Use when:**
-- Before creating PRs
-- After refactoring handlers or services
-- Adding new API endpoints
-- Modifying `wrangler.toml`
-- Reviewing external API integrations
+- Deploying to production
+- Investigating production errors or slow responses
+- Analyzing logs for patterns
+- Managing KV cache or Durable Objects
+- Monitoring runtime performance
 
-**Autonomy:** Medium - provides detailed reviews and recommendations
+**Autonomy:** High - can deploy, monitor, and rollback autonomously
+
+**CRITICAL:** Always uses `npx wrangler` (never plain `wrangler`)
+
+---
+
+#### 🧠 zen-mcp-master (Deep Analysis & Validation)
+**Location:** `.claude/skills/zen-mcp-master/`
+**Invoke with:** `/skill zen-mcp-master` or automatically for analysis tasks
+
+**Capabilities:**
+- Select appropriate Zen MCP tool for task (14 tools available)
+- Configure optimal model (Gemini 2.5 Pro, Grok-4, etc.)
+- Manage multi-turn workflows with continuation_id
+- Coordinate between tools (debug → codereview → deploy)
+
+**Available Tools:**
+- `debug` - Complex bug investigation
+- `codereview` - Code quality and architecture review
+- `secaudit` - Security vulnerability assessment
+- `thinkdeep` - Multi-stage reasoning for complex problems
+- `planner` - Task planning and roadmapping
+- `analyze` - Codebase analysis and architecture understanding
+- `refactor` - Refactoring opportunity identification
+- `testgen` - Test generation and coverage improvement
+- `precommit` - Pre-commit validation across repositories
+- `tracer` - Execution flow and dependency tracing
+- `docgen` - Documentation generation
+- `consensus` - Multi-model decision making
+
+**Use when:**
+- Code review needed
+- Security audit required
+- Complex debugging
+- Refactoring planning
+- Test generation
+- Any deep technical analysis
+
+**Autonomy:** High - can select tools and models autonomously
 
 ---
 
@@ -437,62 +477,129 @@ throw new Error('External API call failed')
 #### Level 1: Inline Assistance
 - **GitHub Copilot:** Inline code completion, boilerplate generation
 
-#### Level 2: Project Agents (Autonomous)
-- **cf-ops-monitor:** Deployment, monitoring, rollback
-- **cf-code-reviewer:** Code quality, Workers best practices
+#### Level 2: Project Orchestration
+- **project-manager:** Top-level delegation and workflow coordination
+  - Delegates to cloudflare-agent and zen-mcp-master
+  - Coordinates multi-phase workflows
+  - Makes strategic decisions
 
-#### Level 3: Orchestration & Architecture
-- **Claude Code (you!):** Multi-file refactoring, architecture changes
+#### Level 3: Specialized Agents
+- **cloudflare-agent:** Cloudflare Workers deployment and monitoring
+  - Uses `npx wrangler` for all operations
+  - Autonomous deployment with rollback
+  - Real-time log analysis
+
+- **zen-mcp-master:** Deep technical analysis and validation
+  - Delegates to 14 Zen MCP tools
+  - Selects optimal models (Gemini, Grok)
+  - Manages multi-turn workflows
+
+#### Level 4: Direct Implementation
+- **Claude Code (you!):** Multi-file refactoring, direct code changes
 - **Jules (@jules on GitHub):** PR reviews, code explanations
 
-#### Level 4: Deep Analysis
-- **Zen MCP Tools:**
-  - `debug` - Complex bug investigation
-  - `secaudit` - Security vulnerability assessment
-  - `codereview` - Architectural code review
-  - `thinkdeep` - Multi-stage reasoning for complex problems
-  - `precommit` - Pre-commit validation across repositories
+#### Level 5: Deep Analysis Tools (via zen-mcp-master)
+- **debug** - Complex bug investigation
+- **codereview** - Code quality and architecture review
+- **secaudit** - Security vulnerability assessment
+- **thinkdeep** - Multi-stage reasoning for complex problems
+- **precommit** - Pre-commit validation
+- **planner** - Task planning
+- **analyze** - Codebase analysis
+- **refactor** - Refactoring opportunities
+- **testgen** - Test generation
+- **tracer** - Execution flow tracing
+- **docgen** - Documentation generation
+- **consensus** - Multi-model decision making
 
 ---
 
-### Agent Handoff Patterns
+### Agent Workflow Patterns
 
-**Code Change Workflow:**
-1. **Copilot** generates initial code
-2. **cf-code-reviewer** validates Workers patterns and security
-3. **Claude Code** refactors to match project architecture
-4. **cf-ops-monitor** deploys and monitors health
-5. **Zen MCP** performs deep security audit (if sensitive changes)
-6. **Jules** reviews PR before human approval
+**Simple Deployment:**
+```
+User request → project-manager analyzes
+             → Delegates to cloudflare-agent
+             → npx wrangler deploy + health check + monitor
+             → Report results to user
+```
 
-**Incident Response Workflow:**
-1. **cf-ops-monitor** detects error spike via `wrangler tail`
-2. **cf-ops-monitor** auto-rollback if error rate > 5%
-3. **Claude Code** investigates root cause with Zen MCP `debug`
-4. **cf-code-reviewer** validates fix before re-deploy
-5. **cf-ops-monitor** deploys fix and monitors recovery
+**Code Review + Deploy:**
+```
+User request → project-manager analyzes
+             → Phase 1: zen-mcp-master (codereview tool)
+             → Phase 2: cloudflare-agent (deploy + monitor)
+             → Report results to user
+```
 
-**New Feature Workflow:**
-1. **Claude Code** implements feature across multiple files
-2. **cf-code-reviewer** validates code quality and patterns
-3. **Zen MCP** `codereview` for architecture alignment
-4. **cf-ops-monitor** deploys to production with monitoring
-5. **Jules** documents feature in PR review
+**Complex Bug Investigation:**
+```
+User request → project-manager analyzes (high priority)
+             → Parallel investigation:
+                - cloudflare-agent (analyze logs)
+                - zen-mcp-master (debug tool)
+             → zen-mcp-master (codereview for fix validation)
+             → cloudflare-agent (deploy with extended monitoring)
+             → zen-mcp-master (thinkdeep for post-mortem)
+```
+
+**Security Audit + Deploy:**
+```
+User request → project-manager analyzes (security sensitive)
+             → Phase 1: zen-mcp-master (secaudit tool)
+             → Phase 2: zen-mcp-master (codereview tool)
+             → Phase 3: zen-mcp-master (precommit tool)
+             → Phase 4: cloudflare-agent (deploy + monitor)
+             → Report security assessment + deployment status
+```
+
+**Major Refactoring:**
+```
+User request → project-manager analyzes (complex task)
+             → Phase 1: zen-mcp-master (analyze current architecture)
+             → Phase 2: zen-mcp-master (refactor opportunities)
+             → Phase 3: zen-mcp-master (planner for step-by-step)
+             → Phase 4: Claude Code (execute refactoring)
+             → Phase 5: zen-mcp-master (codereview validation)
+             → Phase 6: zen-mcp-master (testgen for coverage)
+             → Phase 7: cloudflare-agent (deploy + monitor)
+```
 
 ---
 
 ### Hook-Based Agent Triggers
 
-**Automatic Invocation:**
-- Code changes in `src/handlers/` or `src/services/` → `cf-code-reviewer`
-- `wrangler deploy` execution → `cf-ops-monitor`
+**Automatic Suggestions:**
+- `npx wrangler deploy` → `cloudflare-agent`
+- `npx wrangler tail` → `cloudflare-agent`
+- `npx wrangler rollback` → `cloudflare-agent`
+- Code changes in `src/handlers/` → `zen-mcp-master` (codereview)
+- Code changes in `src/services/` → `zen-mcp-master` (codereview)
 - `wrangler.toml` modifications → Both agents
-- `wrangler tail` streaming → `cf-ops-monitor`
+- Multiple file edits → `project-manager`
+- Durable Object changes → `zen-mcp-master` (WebSocket review)
+- Test file changes → `zen-mcp-master` (testgen)
 
 **Hook Location:** `.claude/hooks/post-tool-use.sh`
 
 ---
 
 **Last Updated:** November 13, 2025
-**Maintained By:** AI Team (Claude Code, cf-ops-monitor, cf-code-reviewer, Jules, Zen MCP)
+**Maintained By:** AI Team (project-manager, cloudflare-agent, zen-mcp-master, Claude Code, Jules)
 **Human Owner:** @jukasdrj
+
+---
+
+## Quick Agent Reference
+
+**Need deployment?** → `/skill cloudflare-agent`
+**Need code review?** → `/skill zen-mcp-master` (uses codereview tool)
+**Need security audit?** → `/skill zen-mcp-master` (uses secaudit tool)
+**Need debugging?** → `/skill zen-mcp-master` (uses debug tool)
+**Complex multi-phase task?** → `/skill project-manager`
+
+**Available Models (Zen MCP):**
+- `gemini-2.5-pro` (alias: `pro`) - Deep reasoning, best for critical tasks
+- `grok-4-heavy` (alias: `grokheavy`) - Most powerful Grok model
+- `grok-code-fast-1` (alias: `grokcode`) - Specialized for coding tasks
+- `flash-preview` - Fast, efficient for routine tasks

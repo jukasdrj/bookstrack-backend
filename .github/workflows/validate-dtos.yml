@@ -1,0 +1,253 @@
+name: 🔍 Validate DTO Contracts
+
+on:
+  pull_request:
+    paths:
+      - 'src/types/canonical.ts'
+      - 'src/types/enums.ts'
+      - 'src/types/responses.ts'
+      - 'src/types/websocket-messages.ts'
+      - '.github/workflows/validate-dtos.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/types/canonical.ts'
+      - 'src/types/enums.ts'
+      - 'src/types/responses.ts'
+      - 'src/types/websocket-messages.ts'
+
+jobs:
+  validate-ios-sync:
+    runs-on: ubuntu-latest
+    name: Check iOS DTOs are in sync
+    steps:
+      - name: Checkout backend repo
+        uses: actions/checkout@v4
+        with:
+          path: backend
+
+      - name: Checkout iOS repo
+        uses: actions/checkout@v4
+        with:
+          repository: jukasdrj/books-tracker-v1
+          path: ios
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Extract DTO Definitions
+        id: extract
+        run: |
+          cd backend
+
+          # Extract TypeScript interface definitions
+          echo "📋 Extracting TypeScript DTO definitions..."
+
+          # Extract WorkDTO fields
+          WORK_FIELDS=$(grep -A 100 "export interface WorkDTO" src/types/canonical.ts | \
+            grep -E "^\s+[a-zA-Z]" | \
+            sed 's/\?//g' | \
+            sed 's/;//g' | \
+            awk '{print $1}' | \
+            sort)
+
+          # Extract EditionDTO fields
+          EDITION_FIELDS=$(grep -A 100 "export interface EditionDTO" src/types/canonical.ts | \
+            grep -E "^\s+[a-zA-Z]" | \
+            sed 's/\?//g' | \
+            sed 's/;//g' | \
+            awk '{print $1}' | \
+            sort)
+
+          # Extract AuthorDTO fields
+          AUTHOR_FIELDS=$(grep -A 50 "export interface AuthorDTO" src/types/canonical.ts | \
+            grep -E "^\s+[a-zA-Z]" | \
+            sed 's/\?//g' | \
+            sed 's/;//g' | \
+            awk '{print $1}' | \
+            sort)
+
+          # Extract enums
+          EDITION_FORMATS=$(grep -A 10 "export type EditionFormat" src/types/enums.ts | \
+            grep -oE "'[^']+'" | \
+            sort)
+
+          AUTHOR_GENDERS=$(grep -A 10 "export type AuthorGender" src/types/enums.ts | \
+            grep -oE "'[^']+'" | \
+            sort)
+
+          # Save for comparison
+          echo "$WORK_FIELDS" > /tmp/backend-work-fields.txt
+          echo "$EDITION_FIELDS" > /tmp/backend-edition-fields.txt
+          echo "$AUTHOR_FIELDS" > /tmp/backend-author-fields.txt
+          echo "$EDITION_FORMATS" > /tmp/backend-edition-formats.txt
+          echo "$AUTHOR_GENDERS" > /tmp/backend-author-genders.txt
+
+          echo "✅ Extracted backend DTO definitions"
+
+      - name: Check iOS DTOs exist
+        id: check_ios
+        run: |
+          cd ios
+
+          # Check if DTO files exist
+          if [ ! -f "BooksTrackerPackage/Sources/BooksTrackerFeature/DTOs/WorkDTO.swift" ]; then
+            echo "❌ WorkDTO.swift not found in iOS repo"
+            echo "ios_dtos_exist=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          if [ ! -f "BooksTrackerPackage/Sources/BooksTrackerFeature/DTOs/EditionDTO.swift" ]; then
+            echo "❌ EditionDTO.swift not found in iOS repo"
+            echo "ios_dtos_exist=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          if [ ! -f "BooksTrackerPackage/Sources/BooksTrackerFeature/DTOs/AuthorDTO.swift" ]; then
+            echo "❌ AuthorDTO.swift not found in iOS repo"
+            echo "ios_dtos_exist=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "✅ All iOS DTO files exist"
+          echo "ios_dtos_exist=true" >> $GITHUB_OUTPUT
+
+      - name: Compare DTOs (Basic Check)
+        run: |
+          cd ios/BooksTrackerPackage/Sources/BooksTrackerFeature/DTOs
+
+          echo "📊 Comparing DTO definitions..."
+          echo ""
+
+          # Extract Swift struct properties (basic check)
+          SWIFT_WORK_FIELDS=$(grep -E "^\s+let|^\s+var" WorkDTO.swift | \
+            awk '{print $2}' | \
+            sed 's/://g' | \
+            sort)
+
+          SWIFT_EDITION_FIELDS=$(grep -E "^\s+let|^\s+var" EditionDTO.swift | \
+            awk '{print $2}' | \
+            sed 's/://g' | \
+            sort)
+
+          SWIFT_AUTHOR_FIELDS=$(grep -E "^\s+let|^\s+var" AuthorDTO.swift | \
+            awk '{print $2}' | \
+            sed 's/://g' | \
+            sort)
+
+          echo "$SWIFT_WORK_FIELDS" > /tmp/ios-work-fields.txt
+          echo "$SWIFT_EDITION_FIELDS" > /tmp/ios-edition-fields.txt
+          echo "$SWIFT_AUTHOR_FIELDS" > /tmp/ios-author-fields.txt
+
+          # Compare field counts
+          BACKEND_WORK_COUNT=$(cat /tmp/backend-work-fields.txt | wc -l)
+          IOS_WORK_COUNT=$(cat /tmp/ios-work-fields.txt | wc -l)
+
+          BACKEND_EDITION_COUNT=$(cat /tmp/backend-edition-fields.txt | wc -l)
+          IOS_EDITION_COUNT=$(cat /tmp/ios-edition-fields.txt | wc -l)
+
+          BACKEND_AUTHOR_COUNT=$(cat /tmp/backend-author-fields.txt | wc -l)
+          IOS_AUTHOR_COUNT=$(cat /tmp/ios-author-fields.txt | wc -l)
+
+          echo "WorkDTO: Backend has $BACKEND_WORK_COUNT fields, iOS has $IOS_WORK_COUNT fields"
+          echo "EditionDTO: Backend has $BACKEND_EDITION_COUNT fields, iOS has $IOS_EDITION_COUNT fields"
+          echo "AuthorDTO: Backend has $BACKEND_AUTHOR_COUNT fields, iOS has $IOS_AUTHOR_COUNT fields"
+          echo ""
+
+          # Flag if counts differ significantly (allow for minor differences)
+          WORK_DIFF=$((BACKEND_WORK_COUNT - IOS_WORK_COUNT))
+          WORK_DIFF=${WORK_DIFF#-}  # Absolute value
+
+          EDITION_DIFF=$((BACKEND_EDITION_COUNT - IOS_EDITION_COUNT))
+          EDITION_DIFF=${EDITION_DIFF#-}
+
+          AUTHOR_DIFF=$((BACKEND_AUTHOR_COUNT - IOS_AUTHOR_COUNT))
+          AUTHOR_DIFF=${AUTHOR_DIFF#-}
+
+          if [ $WORK_DIFF -gt 3 ] || [ $EDITION_DIFF -gt 3 ] || [ $AUTHOR_DIFF -gt 3 ]; then
+            echo "⚠️ WARNING: Significant field count differences detected!"
+            echo ""
+            echo "This may indicate DTOs are out of sync."
+            echo "Please review the changes and update iOS Swift DTOs if needed."
+            echo ""
+
+            if [ $WORK_DIFF -gt 3 ]; then
+              echo "WorkDTO differences:"
+              diff /tmp/backend-work-fields.txt /tmp/ios-work-fields.txt || true
+              echo ""
+            fi
+
+            if [ $EDITION_DIFF -gt 3 ]; then
+              echo "EditionDTO differences:"
+              diff /tmp/backend-edition-fields.txt /tmp/ios-edition-fields.txt || true
+              echo ""
+            fi
+
+            if [ $AUTHOR_DIFF -gt 3 ]; then
+              echo "AuthorDTO differences:"
+              diff /tmp/backend-author-fields.txt /tmp/ios-author-fields.txt || true
+              echo ""
+            fi
+
+            echo "⚠️ This is a WARNING, not a failure."
+            echo "Review the differences and update iOS DTOs manually if needed."
+          else
+            echo "✅ DTO field counts are similar (within tolerance)"
+          fi
+
+      - name: Check Last Sync Commit
+        run: |
+          cd ios
+
+          echo "📅 Checking iOS DTO update history..."
+
+          LAST_DTO_COMMIT=$(git log -1 --format="%h %s %ar" -- \
+            BooksTrackerPackage/Sources/BooksTrackerFeature/DTOs/ || echo "No commits found")
+
+          echo "Last DTO update: $LAST_DTO_COMMIT"
+          echo ""
+
+          # Check if DTOs were updated in last 30 days
+          LAST_UPDATE_DAYS=$(git log -1 --format="%cr" -- \
+            BooksTrackerPackage/Sources/BooksTrackerFeature/DTOs/ | \
+            grep -oE "[0-9]+" | head -1 || echo "999")
+
+          if [ "$LAST_UPDATE_DAYS" -gt 30 ]; then
+            echo "⚠️ WARNING: iOS DTOs haven't been updated in 30+ days"
+            echo "Consider reviewing if backend DTOs have changed recently"
+          else
+            echo "✅ iOS DTOs were recently updated"
+          fi
+
+      - name: Generate Sync Report
+        if: always()
+        run: |
+          echo "📋 DTO Synchronization Report"
+          echo "=============================="
+          echo ""
+          echo "Backend DTO Files:"
+          echo "  - src/types/canonical.ts (WorkDTO, EditionDTO, AuthorDTO)"
+          echo "  - src/types/enums.ts (EditionFormat, AuthorGender, etc.)"
+          echo "  - src/types/responses.ts (ApiResponse)"
+          echo ""
+          echo "iOS DTO Files:"
+          echo "  - BooksTrackerPackage/Sources/BooksTrackerFeature/DTOs/WorkDTO.swift"
+          echo "  - BooksTrackerPackage/Sources/BooksTrackerFeature/DTOs/EditionDTO.swift"
+          echo "  - BooksTrackerPackage/Sources/BooksTrackerFeature/DTOs/AuthorDTO.swift"
+          echo ""
+          echo "Manual Sync Required: YES (automatic sync not yet implemented)"
+          echo ""
+          echo "If DTO changes were made:"
+          echo "1. Update iOS Swift DTOs to match TypeScript definitions"
+          echo "2. Run iOS tests to verify compatibility"
+          echo "3. Commit iOS changes separately"
+          echo ""
+          echo "See: .github/DTO_SYNC_PROCESS.md for detailed instructions"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "✅ DTO validation complete"
+          echo ""
+          echo "This workflow checks if backend TypeScript DTOs and iOS Swift DTOs"
+          echo "are roughly in sync. It does NOT enforce exact matching."
+          echo ""
+          echo "If you changed backend DTOs, manually update iOS DTOs before merging."

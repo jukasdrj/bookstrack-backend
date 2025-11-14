@@ -1,0 +1,190 @@
+name: 🤖 Sync Claude Agent Setup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.claude/skills/project-manager/**'
+      - '.claude/skills/zen-mcp-master/**'
+      - '.github/workflows/sync-claude-setup.yml'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  sync-to-ios:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout backend repo
+        uses: actions/checkout@v4
+
+      - name: Sync universal agents to iOS repo
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          echo "🔄 Syncing Claude universal agents to iOS repo..."
+
+          # Clone iOS repo
+          git clone --depth 1 https://github.com/jukasdrj/books-tracker-v1.git /tmp/ios 2>&1 || {
+            echo "⚠️ Could not clone iOS repo (may not exist yet)"
+            exit 0
+          }
+
+          # Configure git
+          git config --global user.email "claude@anthropic.com"
+          git config --global user.name "Claude Code"
+
+          # Create .claude directory structure if needed
+          mkdir -p /tmp/ios/.claude/skills
+          mkdir -p /tmp/ios/.claude/hooks
+          mkdir -p /tmp/ios/.claude/docs
+
+          # Copy universal agents (unchanged across repos)
+          echo "📋 Copying project-manager agent..."
+          cp -r .claude/skills/project-manager /tmp/ios/.claude/skills/
+
+          echo "📋 Copying zen-mcp-master agent..."
+          cp -r .claude/skills/zen-mcp-master /tmp/ios/.claude/skills/
+
+          # Copy documentation
+          echo "📋 Copying robit documentation..."
+          cp .claude/ROBIT_OPTIMIZATION.md /tmp/ios/.claude/ 2>/dev/null || true
+          cp .claude/ROBIT_SHARING_FRAMEWORK.md /tmp/ios/.claude/ 2>/dev/null || true
+
+          # Create README if it doesn't exist
+          if [ ! -f /tmp/ios/.claude/README.md ]; then
+            cat > /tmp/ios/.claude/README.md << 'EOF'
+# Claude Code Agent Setup (iOS)
+
+**Synced from:** bookstrack-backend
+**Last Sync:** $(date +%Y-%m-%d)
+
+## Available Agents
+
+### Universal Agents (Synced Automatically)
+- **project-manager** - Orchestration and delegation
+- **zen-mcp-master** - Deep analysis (14 Zen MCP tools)
+
+### iOS-Specific Agent (Maintained Locally)
+- **xcode-agent** - Xcode build, test, deployment (TODO: Create)
+
+## Usage
+
+```bash
+# For complex workflows
+/skill project-manager
+
+# For analysis/review/debugging
+/skill zen-mcp-master
+
+# For iOS build/test/deploy (after creating xcode-agent)
+/skill xcode-agent
+```
+
+## Customization
+
+### Required: Create xcode-agent
+1. Create `.claude/skills/xcode-agent/skill.md`
+2. Use template from `.claude/ROBIT_SHARING_FRAMEWORK.md`
+3. Customize for iOS workflows
+
+### Required: Customize project-manager
+1. Edit `.claude/skills/project-manager/skill.md`
+2. Update delegation targets to reference `xcode-agent`
+
+### Optional: Add Hooks
+1. Create `.claude/hooks/pre-commit.sh` (iOS-specific checks)
+2. Create `.claude/hooks/post-tool-use.sh` (trigger xcode-agent)
+
+## Documentation
+
+- ROBIT_OPTIMIZATION.md - Original agent setup
+- ROBIT_SHARING_FRAMEWORK.md - How sharing works
+- Backend: https://github.com/jukasdrj/bookstrack-backend/.claude/
+
+## Updates
+
+Universal agents (project-manager, zen-mcp-master) are automatically synced from backend.
+iOS-specific agents and hooks are maintained locally.
+EOF
+          fi
+
+          # Commit and push if changed
+          cd /tmp/ios
+          if ! git diff --quiet .claude/; then
+            git add .claude/
+            git commit -m "chore: sync Claude universal agents from backend
+
+Synced from bookstrack-backend: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+
+Updated:
+- project-manager (universal orchestrator)
+- zen-mcp-master (universal analyst)
+- Documentation
+
+Next steps for iOS:
+1. Create xcode-agent for iOS-specific workflows
+2. Customize project-manager delegation
+3. Add iOS-specific hooks (optional)
+
+See .claude/ROBIT_SHARING_FRAMEWORK.md for details"
+            git push origin main
+            echo "✅ iOS repo updated with universal agents"
+          else
+            echo "ℹ️ No changes to sync to iOS repo"
+          fi
+
+  sync-to-flutter:
+    runs-on: ubuntu-latest
+    if: vars.FLUTTER_REPO_ENABLED == 'true'
+    steps:
+      - name: Checkout backend repo
+        uses: actions/checkout@v4
+
+      - name: Sync universal agents to Flutter repo
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          echo "🔄 Syncing Claude universal agents to Flutter repo..."
+
+          # Clone Flutter repo
+          git clone --depth 1 https://github.com/jukasdrj/bookstrack-flutter.git /tmp/flutter 2>&1 || {
+            echo "⚠️ Could not clone Flutter repo (may not exist yet)"
+            exit 0
+          }
+
+          # Configure git
+          git config --global user.email "claude@anthropic.com"
+          git config --global user.name "Claude Code"
+
+          # Same sync process as iOS
+          mkdir -p /tmp/flutter/.claude/skills
+
+          cp -r .claude/skills/project-manager /tmp/flutter/.claude/skills/
+          cp -r .claude/skills/zen-mcp-master /tmp/flutter/.claude/skills/
+
+          cd /tmp/flutter
+          if ! git diff --quiet .claude/; then
+            git add .claude/
+            git commit -m "chore: sync Claude universal agents from backend"
+            git push origin main
+            echo "✅ Flutter repo updated"
+          else
+            echo "ℹ️ No changes to sync to Flutter repo"
+          fi
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [sync-to-ios]
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "🤖 Claude agent setup sync complete"
+          echo ""
+          echo "Universal agents (project-manager, zen-mcp-master) synced to:"
+          echo "- iOS repo (books-tracker-v1)"
+          echo "- Flutter repo (if enabled)"
+          echo ""
+          echo "Each repo should customize:"
+          echo "1. Create platform-specific agent (xcode-agent, flutter-agent)"
+          echo "2. Update project-manager delegation targets"
+          echo "3. Add platform-specific hooks (optional)"

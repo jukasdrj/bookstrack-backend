@@ -175,6 +175,44 @@ if git diff --cached --name-only | grep -qE "src/handlers/|src/index.js"; then
   fi
 fi
 
+# 10. Check DTO contract changes
+if git diff --cached --name-only | grep -qE "src/types/(canonical|enums|responses|websocket-messages)\.ts"; then
+  echo "🔄 Checking DTO contract changes..."
+
+  CHANGED_DTOS=$(git diff --cached --name-only | grep -E "src/types/(canonical|enums|responses|websocket-messages)\.ts")
+
+  echo -e "${YELLOW}⚠ DTO Contract Changes Detected:${NC}"
+  echo "$CHANGED_DTOS" | sed 's/^/  - /'
+  echo ""
+
+  # Check if API docs were updated
+  if ! git diff --cached --name-only | grep -q "docs/API_README.md"; then
+    echo -e "${YELLOW}⚠ Warning: DTO changes without API doc updates${NC}"
+    echo "  Consider updating docs/API_README.md with new contracts"
+  fi
+
+  # Critical reminder about iOS sync
+  echo ""
+  echo -e "${YELLOW}🚨 IMPORTANT: iOS Swift DTOs Must Be Updated Manually!${NC}"
+  echo ""
+  echo "  Changed TypeScript DTOs require corresponding Swift DTO updates."
+  echo ""
+  echo "  Steps to sync iOS DTOs:"
+  echo "  1. Clone iOS repo: git clone https://github.com/jukasdrj/books-tracker-v1.git"
+  echo "  2. Navigate to: BooksTrackerPackage/Sources/BooksTrackerFeature/DTOs/"
+  echo "  3. Update Swift DTOs to match TypeScript changes"
+  echo "  4. Run iOS tests: swift test"
+  echo "  5. Commit iOS changes separately"
+  echo ""
+  echo "  See .github/DTO_SYNC_PROCESS.md for detailed instructions"
+  echo ""
+
+  # Show what changed in DTOs
+  echo "Changes in DTO files:"
+  git diff --cached --stat -- src/types/canonical.ts src/types/enums.ts src/types/responses.ts src/types/websocket-messages.ts | sed 's/^/  /'
+  echo ""
+fi
+
 # Final result
 echo ""
 if [ $FAILED -eq 1 ]; then

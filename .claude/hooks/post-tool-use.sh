@@ -8,6 +8,7 @@ set -e
 # Get the tool name from environment variable set by Claude Code
 TOOL_NAME="${CLAUDE_TOOL_NAME:-}"
 TOOL_PATH="${CLAUDE_TOOL_PATH:-}"
+TOOL_COMMAND="${CLAUDE_TOOL_COMMAND:-}"
 
 # Exit early if no tool name provided
 if [ -z "$TOOL_NAME" ]; then
@@ -18,37 +19,57 @@ fi
 INVOKE_AGENT=""
 AGENT_CONTEXT=""
 
-# Deployment-related tools → cf-ops-monitor
-if [[ "$TOOL_NAME" == "Bash" ]] && echo "$TOOL_PATH" | grep -qE "wrangler (deploy|publish)"; then
-  INVOKE_AGENT="cf-ops-monitor"
+# Deployment-related tools → cloudflare-agent
+if [[ "$TOOL_NAME" == "Bash" ]] && echo "$TOOL_COMMAND" | grep -qE "npx wrangler (deploy|publish)"; then
+  INVOKE_AGENT="cloudflare-agent"
   AGENT_CONTEXT="Deployment detected. Monitoring health and metrics..."
 
-# Wrangler rollback → cf-ops-monitor
-elif [[ "$TOOL_NAME" == "Bash" ]] && echo "$TOOL_PATH" | grep -q "wrangler rollback"; then
-  INVOKE_AGENT="cf-ops-monitor"
+# Wrangler rollback → cloudflare-agent
+elif [[ "$TOOL_NAME" == "Bash" ]] && echo "$TOOL_COMMAND" | grep -q "npx wrangler rollback"; then
+  INVOKE_AGENT="cloudflare-agent"
   AGENT_CONTEXT="Rollback executed. Verifying system stability..."
 
-# Code changes to handlers/services → cf-code-reviewer
+# Wrangler tail (log streaming) → cloudflare-agent
+elif [[ "$TOOL_NAME" == "Bash" ]] && echo "$TOOL_COMMAND" | grep -q "npx wrangler tail"; then
+  INVOKE_AGENT="cloudflare-agent"
+  AGENT_CONTEXT="Log streaming active. Analyzing patterns..."
+
+# Any wrangler command → cloudflare-agent
+elif [[ "$TOOL_NAME" == "Bash" ]] && echo "$TOOL_COMMAND" | grep -q "npx wrangler"; then
+  INVOKE_AGENT="cloudflare-agent"
+  AGENT_CONTEXT="Wrangler operation detected."
+
+# Code changes to handlers/services → zen-mcp-master for review
 elif [[ "$TOOL_NAME" =~ ^(Write|Edit)$ ]] && echo "$TOOL_PATH" | grep -qE "src/(handlers|services|providers)/"; then
-  INVOKE_AGENT="cf-code-reviewer"
-  AGENT_CONTEXT="Code changes in $TOOL_PATH detected. Running quality review..."
+  INVOKE_AGENT="zen-mcp-master"
+  AGENT_CONTEXT="Code changes in $TOOL_PATH detected. Consider code review (codereview tool)..."
 
 # wrangler.toml changes → both agents
 elif [[ "$TOOL_NAME" =~ ^(Write|Edit)$ ]] && echo "$TOOL_PATH" | grep -q "wrangler.toml"; then
-  INVOKE_AGENT="cf-ops-monitor,cf-code-reviewer"
-  AGENT_CONTEXT="wrangler.toml modified. Validating configuration and deployment impact..."
+  INVOKE_AGENT="cloudflare-agent,zen-mcp-master"
+  AGENT_CONTEXT="wrangler.toml modified. Validate config (cloudflare-agent) and review changes (zen-mcp-master:codereview)..."
 
-# Log streaming → cf-ops-monitor
-elif [[ "$TOOL_NAME" == "Bash" ]] && echo "$TOOL_PATH" | grep -q "wrangler tail"; then
-  INVOKE_AGENT="cf-ops-monitor"
-  AGENT_CONTEXT="Log streaming active. Analyzing patterns..."
+# Durable Object changes → zen-mcp-master
+elif [[ "$TOOL_NAME" =~ ^(Write|Edit)$ ]] && echo "$TOOL_PATH" | grep -q "durable-objects/"; then
+  INVOKE_AGENT="zen-mcp-master"
+  AGENT_CONTEXT="Durable Object modified. Consider WebSocket pattern review (codereview)..."
+
+# Test file changes → zen-mcp-master
+elif [[ "$TOOL_NAME" =~ ^(Write|Edit)$ ]] && echo "$TOOL_PATH" | grep -qE "test/|\.test\.|\.spec\."; then
+  INVOKE_AGENT="zen-mcp-master"
+  AGENT_CONTEXT="Test file modified. Consider test coverage analysis (testgen)..."
+
+# Multiple file changes → project-manager
+elif [[ "$TOOL_NAME" == "MultiEdit" ]]; then
+  INVOKE_AGENT="project-manager"
+  AGENT_CONTEXT="Multiple files changed. Consider comprehensive review..."
 fi
 
 # If an agent should be invoked, notify the user
 if [ -n "$INVOKE_AGENT" ]; then
   echo ""
-  echo "🤖 Agent Trigger: $AGENT_CONTEXT"
-  echo "   Relevant Skills: $INVOKE_AGENT"
+  echo "🤖 Agent Suggestion: $AGENT_CONTEXT"
+  echo "   Recommended Skills: $INVOKE_AGENT"
   echo ""
   echo "   To invoke manually, use:"
   for agent in $(echo "$INVOKE_AGENT" | tr ',' ' '); do
