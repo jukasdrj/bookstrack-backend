@@ -1,4 +1,5 @@
 import { searchByTitle } from '../handlers/book-search.js';
+import { enrichBooksParallel } from '../services/parallel-enrichment.js';
 import { searchByAuthor } from '../handlers/author-search.js';
 import { generateCacheKey, setCached } from '../utils/cache.js';
 
@@ -48,26 +49,25 @@ export async function processAuthorBatch(batch, env, ctx) {
 
       console.log(`Cached author "${author}": ${authorResult.works.length} works`);
 
-      // 3. STEP 2: Extract titles and warm each one using searchByTitle handler
-      // This ensures canonical DTO format and correct cache keys (with maxResults param)
-      let titlesWarmed = 0;
-      for (const work of authorResult.works) {
-        try {
-          // Use searchByTitle to get full orchestrated data (Google + OpenLibrary)
-          // This will automatically cache with correct key: search:title:maxresults=20&title={normalized}
+      // 3. STEP 2: Extract titles and warm each one in parallel
+      console.log(`Warming ${authorResult.works.length} titles for author "${author}"...`);
+
+      const results = await enrichBooksParallel(
+        authorResult.works,
+        async (work) => {
           await searchByTitle(work.title, { maxResults: 20 }, env, ctx);
-          titlesWarmed++;
+          return { ...work, warmed: true };
+        },
+        (completed, total, work, isError) => {
+          if (!isError) {
+            console.log(`(${completed}/${total}) Warmed cache for "${work.title}"`);
+          }
+        },
+        env.CACHE_WARMING_CONCURRENCY || 5
+      );
 
-          // Rate limiting: Small delay between title searches
-          await sleep(100); // 100ms between titles
-
-        } catch (titleError) {
-          console.error(`Failed to warm title "${work.title}":`, titleError);
-          // Continue with next title (don't fail entire batch)
-        }
-      }
-
-      console.log(`Warmed ${titlesWarmed} titles for author "${author}"`);
+      const titlesWarmed = results.filter(r => r.warmed).length;
+      console.log(`Finished warming ${titlesWarmed} titles for author "${author}"`);
 
       // 4. Mark author as processed
       await env.CACHE.put(
@@ -106,11 +106,3 @@ export async function processAuthorBatch(batch, env, ctx) {
   }
 }
 
-/**
- * Sleep utility for rate limiting
- * @param {number} ms - Milliseconds to sleep
- * @returns {Promise<void>}
- */
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
