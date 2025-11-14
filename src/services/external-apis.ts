@@ -450,6 +450,7 @@ export async function searchOpenLibraryByGoodreadsId(
   goodreadsId: string,
   env: ExternalAPIEnv,
 ): Promise<SearchResult> {
+  const startTime = Date.now();
   try {
     console.log(`OpenLibrary Goodreads ID search for "${goodreadsId}"`);
 
@@ -468,7 +469,7 @@ export async function searchOpenLibraryByGoodreadsId(
       return {
         success: true,
         provider: "openlibrary",
-        processingTime: 0,
+        processingTime: Date.now() - startTime,
         works: [],
         editions: [],
         authors: [],
@@ -481,7 +482,7 @@ export async function searchOpenLibraryByGoodreadsId(
     return {
       success: true,
       provider: "openlibrary",
-      processingTime: 0,
+      processingTime: Date.now() - startTime,
       ...normalized,
     };
   } catch (error) {
@@ -489,7 +490,11 @@ export async function searchOpenLibraryByGoodreadsId(
       `Error in OpenLibrary Goodreads ID search for "${goodreadsId}":`,
       error,
     );
-    return { success: false, error: (error as Error).message };
+    return {
+      success: false,
+      error: (error as Error).message,
+      processingTime: Date.now() - startTime,
+    };
   }
 }
 
@@ -497,6 +502,7 @@ export async function searchOpenLibraryById(
   workId: string,
   env: ExternalAPIEnv,
 ): Promise<SearchResult> {
+  const startTime = Date.now();
   try {
     console.log(`OpenLibrary ID search for "${workId}"`);
 
@@ -515,14 +521,18 @@ export async function searchOpenLibraryById(
     return {
       success: true,
       provider: "openlibrary",
-      processingTime: 0,
+      processingTime: Date.now() - startTime,
       works: normalized.works,
       editions: normalized.editions,
       authors: normalized.authors,
     };
   } catch (error) {
     console.error(`Error in OpenLibrary ID search for "${workId}":`, error);
-    return { success: false, error: (error as Error).message };
+    return {
+      success: false,
+      error: (error as Error).message,
+      processingTime: Date.now() - startTime,
+    };
   }
 }
 
@@ -531,6 +541,7 @@ export async function searchOpenLibrary(
   params: SearchParams = {},
   env: ExternalAPIEnv,
 ): Promise<SearchResult> {
+  const startTime = Date.now();
   try {
     console.log(`OpenLibrary general search for "${query}"`);
 
@@ -551,7 +562,7 @@ export async function searchOpenLibrary(
     return {
       success: true,
       provider: "openlibrary",
-      processingTime: 0,
+      processingTime: Date.now() - startTime,
       works: normalized.works,
       editions: normalized.editions,
       authors: normalized.authors,
@@ -559,7 +570,11 @@ export async function searchOpenLibrary(
     };
   } catch (error) {
     console.error(`Error in OpenLibrary search for "${query}":`, error);
-    return { success: false, error: (error as Error).message };
+    return {
+      success: false,
+      error: (error as Error).message,
+      processingTime: Date.now() - startTime,
+    };
   }
 }
 
@@ -884,9 +899,3 @@ async function enforceRateLimit(env: ExternalAPIEnv): Promise<void> {
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
-
-function extractYear(dateString: string | null): number | null {
-  if (!dateString) return null;
-  const yearMatch = dateString.match(/(\d{4})/);
-  return yearMatch ? parseInt(yearMatch[1], 10) : null;
-}
