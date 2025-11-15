@@ -6,7 +6,7 @@
  */
 
 import type { ApiResponse, BookSearchResponse } from '../../types/responses.js';
-import { createSuccessResponseObject, createErrorResponseObject, ErrorCodes } from '../../utils/response-builder.js';
+import { createSuccessResponseObject, createErrorResponseObject } from '../../utils/response-builder.js';
 import { enrichMultipleBooks } from '../../services/enrichment.ts';
 import { normalizeTitle, normalizeAuthor } from '../../utils/normalization.js';
 import { setCached } from '../../utils/cache.js';
