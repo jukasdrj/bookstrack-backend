@@ -109,7 +109,7 @@ export function createSuccessResponse<T>(
   return new Response(JSON.stringify(envelope), {
     status,
     headers: {
-      ...(corsRequest ? getCorsHeaders(corsRequest) : {}),
+      ...getCorsHeaders(corsRequest),
       "Content-Type": "application/json",
     },
   });
@@ -155,7 +155,7 @@ export function createErrorResponse(
   return new Response(JSON.stringify(envelope), {
     status,
     headers: {
-      ...(corsRequest ? getCorsHeaders(corsRequest) : {}),
+      ...getCorsHeaders(corsRequest),
       "Content-Type": "application/json",
     },
   });
@@ -243,7 +243,7 @@ export function jsonResponse(
   return new Response(JSON.stringify(data), {
     status,
     headers: {
-      ...(corsRequest ? getCorsHeaders(corsRequest) : {}),
+      ...getCorsHeaders(corsRequest),
       "Content-Type": "application/json",
       ...extraHeaders,
     },
