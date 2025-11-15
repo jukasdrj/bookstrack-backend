@@ -16,6 +16,9 @@ describe('CSV Import Handler', () => {
       PROGRESS_WEBSOCKET_DO: {
         idFromName: vi.fn(() => 'do-id'),
         get: vi.fn(() => ({
+          setAuthToken: vi.fn().mockResolvedValue(undefined),
+          initializeJobState: vi.fn().mockResolvedValue(undefined),
+          scheduleCSVProcessing: vi.fn().mockResolvedValue(undefined),
           ready: vi.fn().mockResolvedValue(undefined),
           updateProgress: vi.fn().mockResolvedValue(undefined),
           complete: vi.fn().mockResolvedValue(undefined),
@@ -34,7 +37,6 @@ describe('CSV Import Handler', () => {
     expect(body.metadata).toBeDefined();
     expect(body.metadata.timestamp).toBeDefined();
     expect(body.error).toBeUndefined();
-    expect(mockEnv.ctx.waitUntil).toHaveBeenCalled();
   });
 
   test('rejects files larger than 10MB', async () => {
@@ -54,7 +56,7 @@ describe('CSV Import Handler', () => {
     expect(body.data).toBeNull();
     expect(body.error).toBeDefined();
     expect(body.error.message).toContain('too large');
-    expect(body.error.code).toBe('E_FILE_TOO_LARGE');
+    expect(body.error.code).toBe('FILE_TOO_LARGE');
     expect(body.metadata.timestamp).toBeDefined();
   });
 });

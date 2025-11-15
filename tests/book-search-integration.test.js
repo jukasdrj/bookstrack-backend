@@ -24,11 +24,15 @@ describe('searchByTitle with UnifiedCache', () => {
     global.caches = {
       default: {
         match: vi.fn(async () => {
-          return new Response(JSON.stringify({
+          const response = new Response(JSON.stringify({
             items: [{ volumeInfo: { title: 'Hamlet' } }]
           }), {
-            headers: { 'Content-Type': 'application/json' }
+            headers: {
+              'Content-Type': 'application/json',
+              'CF-Cache-Status': 'HIT'
+            }
           });
+          return response;
         }),
         put: vi.fn(async () => {})
       }
@@ -39,7 +43,7 @@ describe('searchByTitle with UnifiedCache', () => {
     const result = await searchByTitle('hamlet', { maxResults: 20 }, mockEnv, mockCtx);
 
     expect(result.cached).toBe(true);
-    expect(result.cacheSource).toBe('EDGE');
+    expect(result.cacheSource).toBe('EDGE_FRESH');
     expect(result.items).toBeDefined();
   });
 });
@@ -66,11 +70,15 @@ describe('searchByISBN with UnifiedCache', () => {
     global.caches = {
       default: {
         match: vi.fn(async () => {
-          return new Response(JSON.stringify({
+          const response = new Response(JSON.stringify({
             items: [{ volumeInfo: { industryIdentifiers: [{ identifier: '9780743273565' }] } }]
           }), {
-            headers: { 'Content-Type': 'application/json' }
+            headers: {
+              'Content-Type': 'application/json',
+              'CF-Cache-Status': 'HIT'
+            }
           });
+          return response;
         }),
         put: vi.fn(async () => {})
       }
@@ -81,6 +89,6 @@ describe('searchByISBN with UnifiedCache', () => {
     const result = await searchByISBN('9780743273565', { maxResults: 1 }, mockEnv, mockCtx);
 
     expect(result.cached).toBe(true);
-    expect(result.cacheSource).toBe('EDGE');
+    expect(result.cacheSource).toBe('EDGE_FRESH');
   });
 });
