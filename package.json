@@ -16,9 +16,9 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.0.8",
-    "@vitest/ui": "^4.0.8",
+    "@vitest/ui": "^4.0.9",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.8",
+    "vitest": "^4.0.9",
     "wrangler": "^4.48.0"
   }
 }
