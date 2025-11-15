@@ -1,13 +1,50 @@
 /**
- * API Response Envelopes - DEPRECATED
+ * API Response Envelopes - Standardized Contracts
  *
- * @deprecated This file contains legacy response helper functions.
- * Use `src/utils/response-builder.ts` instead for all response generation.
- * 
- * The helper functions createSuccessResponseObject and createErrorResponseObject
- * have been moved to response-builder.ts for consolidation.
- * 
- * This file will be kept for type definitions only.
+ * This module defines the canonical API response formats used across all HTTP endpoints.
+ * All responses follow a consistent envelope structure for predictable client-side handling.
+ *
+ * ## Unified Response Envelope (Current Standard)
+ *
+ * All /v1/* endpoints use the `ResponseEnvelope<T>` format:
+ *
+ * **Success Response:**
+ * ```json
+ * {
+ *   "data": { ...payload... },
+ *   "metadata": {
+ *     "timestamp": "2025-11-14T23:00:00.000Z",
+ *     "processingTime": 123,
+ *     "provider": "google-books",
+ *     "cached": true
+ *   }
+ * }
+ * ```
+ *
+ * **Error Response:**
+ * ```json
+ * {
+ *   "data": null,
+ *   "metadata": {
+ *     "timestamp": "2025-11-14T23:00:00.000Z"
+ *   },
+ *   "error": {
+ *     "message": "Invalid query parameter",
+ *     "code": "INVALID_QUERY",
+ *     "details": { ... }
+ *   }
+ * }
+ * ```
+ *
+ * ## Legacy Response Format (Deprecated)
+ *
+ * The legacy `SuccessResponse<T> | ErrorResponse` format with `success` discriminator
+ * has been deprecated. Use `ResponseEnvelope<T>` for all new endpoints.
+ *
+ * **Migration Note:** The feature flag `ENABLE_UNIFIED_ENVELOPE` has been removed.
+ * All endpoints now use the unified envelope format exclusively.
+ *
+ * @module types/responses
  */
 
 import type { DataProvider, ApiErrorCode } from './enums.js';
@@ -30,28 +67,56 @@ export interface ResponseMeta {
 }
 
 /**
- * Response metadata for new envelope format
+ * Response metadata for unified envelope format
+ *
+ * Included in all API responses to provide context about the request processing.
  */
 export interface ResponseMetadata {
-  timestamp: string; // ISO 8601
-  traceId?: string; // for distributed tracing
-  processingTime?: number; // milliseconds
-  provider?: DataProvider;
-  cached?: boolean;
+  timestamp: string; // ISO 8601 timestamp of when the response was generated
+  traceId?: string; // Optional distributed tracing identifier (future use)
+  processingTime?: number; // Request processing duration in milliseconds
+  provider?: DataProvider; // Data source that fulfilled the request
+  cached?: boolean; // Whether the response was served from cache
 }
 
 /**
  * API Error structure
+ *
+ * Consistent error format included in all error responses.
  */
 export interface ApiError {
-  message: string;
-  code?: string;
-  details?: any;
+  message: string; // Human-readable error description
+  code?: string; // Machine-readable error code for programmatic handling
+  details?: any; // Optional additional context about the error
 }
 
 /**
- * Universal response envelope (new format)
- * Used for all /v1/* endpoints requiring standardized responses
+ * Universal Response Envelope (Current Standard)
+ *
+ * All /v1/* endpoints use this format for consistent client-side handling.
+ * The envelope always includes `data` and `metadata` fields.
+ *
+ * - Success: `data` contains the payload, `error` is undefined
+ * - Error: `data` is null, `error` contains error details
+ *
+ * @template T - The type of the success response payload
+ *
+ * @example Success response
+ * ```typescript
+ * const response: ResponseEnvelope<BookSearchResponse> = {
+ *   data: { works: [...], editions: [...], authors: [...] },
+ *   metadata: { timestamp: "2025-11-14T23:00:00.000Z", provider: "google-books" }
+ * };
+ * ```
+ *
+ * @example Error response
+ * ```typescript
+ * const response: ResponseEnvelope<null> = {
+ *   data: null,
+ *   metadata: { timestamp: "2025-11-14T23:00:00.000Z" },
+ *   error: { message: "Book not found", code: "NOT_FOUND" }
+ * };
+ * ```
  */
 export interface ResponseEnvelope<T> {
   data: T | null;
@@ -60,7 +125,13 @@ export interface ResponseEnvelope<T> {
 }
 
 /**
- * Success response envelope
+ * Success Response Envelope (Legacy - Deprecated)
+ *
+ * @deprecated Use `ResponseEnvelope<T>` instead
+ *
+ * Legacy format with `success` discriminator. This format is no longer used
+ * for new endpoints but is maintained for backward compatibility in some
+ * internal response builders.
  */
 export interface SuccessResponse<T> {
   success: true;
@@ -69,7 +140,12 @@ export interface SuccessResponse<T> {
 }
 
 /**
- * Error response envelope
+ * Error Response Envelope (Legacy - Deprecated)
+ *
+ * @deprecated Use `ResponseEnvelope<null>` with error field instead
+ *
+ * Legacy error format with `success` discriminator. This format is no longer used
+ * for new endpoints but is maintained for backward compatibility.
  */
 export interface ErrorResponse {
   success: false;
@@ -83,7 +159,9 @@ export interface ErrorResponse {
 }
 
 /**
- * Discriminated union for all responses
+ * Discriminated Union for Legacy Responses (Deprecated)
+ *
+ * @deprecated Use `ResponseEnvelope<T>` instead
  */
 export type ApiResponse<T> = SuccessResponse<T> | ErrorResponse;
 
@@ -234,13 +312,10 @@ export interface EnrichedBookDTO {
 }
 
 // ============================================================================
-// HELPER FUNCTIONS - DEPRECATED
+// HELPER FUNCTIONS
 // ============================================================================
 
 /**
- * @deprecated Use `createSuccessResponseObject` from `src/utils/response-builder.ts` instead.
- * This function is kept for backward compatibility only.
- * 
  * Create success response object (legacy format)
  * Returns SuccessResponse<T> object, not Response
  */
@@ -259,9 +334,6 @@ export function createSuccessResponseObject<T>(
 }
 
 /**
- * @deprecated Use `createErrorResponseObject` from `src/utils/response-builder.ts` instead.
- * This function is kept for backward compatibility only.
- * 
  * Create error response object (legacy format)
  * Returns ErrorResponse object, not Response
  */
@@ -276,10 +348,6 @@ export function createErrorResponseObject(
     error: { message, code, details },
     meta: {
       timestamp: new Date().toISOString(),
-      ...meta,
-    },
-  };
-}
       ...meta,
     },
   };

@@ -124,7 +124,7 @@ export async function processCSVImportCore(csvText, jobId, doStub, env) {
     }
 
     // Stage 0: Validation (0-5%)
-    await doStub.updateProgressV2('csv_import', {
+    await doStub.updateProgress('csv_import', {
       progress: 0.02,
       status: 'Validating CSV file...',
       processedCount: 0
@@ -136,7 +136,7 @@ export async function processCSVImportCore(csvText, jobId, doStub, env) {
     }
 
     // Stage 1: Gemini Parsing (5-50%)
-    await doStub.updateProgressV2('csv_import', {
+    await doStub.updateProgress('csv_import', {
       progress: 0.05,
       status: 'Uploading CSV to Gemini...',
       processedCount: 0
@@ -166,7 +166,7 @@ export async function processCSVImportCore(csvText, jobId, doStub, env) {
 
     // Stage 2: Report parsed count (no validation needed - schema enforces requirements)
     // FIX: Removed redundant currentItem (duplicates processedCount info)
-    await doStub.updateProgressV2('csv_import', {
+    await doStub.updateProgress('csv_import', {
       progress: 0.75,
       status: `Gemini parsed ${parsedBooks.length} books with valid title+author`,
       processedCount: parsedBooks.length
@@ -183,7 +183,7 @@ export async function processCSVImportCore(csvText, jobId, doStub, env) {
       }));
 
     // Complete immediately (no enrichment, no manual validation)
-    await doStub.completeV2('csv_import', {
+    await doStub.complete('csv_import', {
       books: validatedBooks,
       errors: [],
       successRate: `${validatedBooks.length}/${parsedBooks.length}`
