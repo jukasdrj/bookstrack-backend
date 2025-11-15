@@ -15,7 +15,7 @@
     "update-wrangler": "npm install wrangler@latest"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^4.0.8",
+    "@vitest/coverage-v8": "^4.0.9",
     "@vitest/ui": "^4.0.9",
     "typescript": "^5.9.3",
     "vitest": "^4.0.9",
