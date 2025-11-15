@@ -170,7 +170,8 @@ export class JobStateManagerDO extends DurableObject {
 
     // Close WebSocket connection after brief delay to ensure message delivery
     // Fix: Properly await async operation in setTimeout to catch errors
-    const closePromise = new Promise((resolve) => {
+    // Using `void` to explicitly mark this as a fire-and-forget operation
+    void new Promise((resolve) => {
       setTimeout(async () => {
         try {
           await wsDoStub.closeConnection("Job completed");
@@ -184,9 +185,6 @@ export class JobStateManagerDO extends DurableObject {
         }
       }, 1000);
     });
-
-    // Note: We don't await closePromise here to avoid blocking the response
-    // The WebSocket close will happen in the background
 
     return { success: true };
   }
@@ -234,7 +232,8 @@ export class JobStateManagerDO extends DurableObject {
 
     // Close WebSocket connection after brief delay to ensure message delivery
     // Fix: Properly await async operation in setTimeout to catch errors
-    const closePromise = new Promise((resolve) => {
+    // Using `void` to explicitly mark this as a fire-and-forget operation
+    void new Promise((resolve) => {
       setTimeout(async () => {
         try {
           await wsDoStub.closeConnection("Job failed");
@@ -248,9 +247,6 @@ export class JobStateManagerDO extends DurableObject {
         }
       }, 1000);
     });
-
-    // Note: We don't await closePromise here to avoid blocking the response
-    // The WebSocket close will happen in the background
 
     return { success: true };
   }
