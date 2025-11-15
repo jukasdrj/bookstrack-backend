@@ -62,6 +62,12 @@ export function errorResponse(
   corsRequest: Request | null = null,
   extraHeaders: Record<string, string> = {},
 ): Response {
+  // Add error code header for analytics tracking
+  const headersWithErrorCode = {
+    'X-Error-Type': code,
+    ...extraHeaders,
+  }
+
   return jsonResponse(
     {
       success: false,
@@ -72,7 +78,7 @@ export function errorResponse(
     },
     status,
     corsRequest,
-    extraHeaders,
+    headersWithErrorCode,
   );
 }
 
@@ -201,7 +207,7 @@ export function createErrorResponse(
   corsRequest: Request | null = null,
 ): Response {
   console.error(`Error [${code || 'UNKNOWN'}]:`, message);
-  
+
   const envelope = {
     data: null,
     metadata: {
@@ -219,6 +225,7 @@ export function createErrorResponse(
     headers: {
       ...(corsRequest ? getCorsHeaders(corsRequest) : {}),
       "Content-Type": "application/json",
+      'X-Error-Type': code || 'UNKNOWN',
     },
   });
 }

@@ -31,6 +31,7 @@ import {
   validateResourceSize,
 } from "./middleware/size-validator.js";
 import { getCorsHeaders } from "./middleware/cors.js";
+import { trackAnalytics } from "./middleware/analytics-tracker.js";
 import {
   jsonResponse,
   errorResponse,
@@ -40,15 +41,24 @@ import {
 import { getProgressDOStub } from "./utils/durable-object-helpers.ts";
 
 // Export the Durable Object classes for Cloudflare Workers runtime
-export { ProgressWebSocketDO, RateLimiterDO, WebSocketConnectionDO, JobStateManagerDO };
+export {
+  ProgressWebSocketDO,
+  RateLimiterDO,
+  WebSocketConnectionDO,
+  JobStateManagerDO,
+};
 
 export default {
   async fetch(request, env, ctx) {
+    // Track request start time for analytics
+    const startTime = Date.now();
+
     const url = new URL(request.url);
 
     // Custom domain routing: harvest.oooefam.net root → Dashboard
     if (url.hostname === "harvest.oooefam.net" && url.pathname === "/") {
-      return await handleHarvestDashboard(request, env);
+      const response = await handleHarvestDashboard(request, env);
+      return trackAnalytics(request, response, env, ctx, startTime);
     }
 
     // Handle OPTIONS preflight requests (CORS)
@@ -470,16 +480,17 @@ export default {
           );
         }
 
-        // Start AI scan in background (NOW guaranteed WebSocket is listening)
-        ctx.waitUntil(
-          aiScanner.processBookshelfScan(
-            jobId,
-            imageData,
-            request,
-            env,
-            doStub,
-            ctx,
-          ),
+        // Schedule AI scan via Durable Object alarm (avoids Worker CPU time limits)
+        // Gemini AI processing can take 20-60s, which would exceed default 30s CPU limit
+        // Alarm-based processing runs in separate context with 15-minute CPU limit
+        const requestHeaders = {
+          "X-AI-Provider": request.headers.get("X-AI-Provider"),
+          "CF-Connecting-IP": request.headers.get("CF-Connecting-IP"),
+        };
+
+        await doStub.scheduleBookshelfScan(imageData, jobId, requestHeaders);
+        console.log(
+          `[API] Bookshelf scan scheduled via alarm for job ${jobId}`,
         );
 
         // Define stages metadata for iOS client (used for progress estimation)
@@ -571,7 +582,13 @@ export default {
       const workTitle = url.searchParams.get("workTitle") || "";
       const author = url.searchParams.get("author") || "";
       const limit = parseInt(url.searchParams.get("limit") || "20");
-      const response = await handleSearchEditions(workTitle, author, limit, env, ctx);
+      const response = await handleSearchEditions(
+        workTitle,
+        author,
+        limit,
+        env,
+        ctx,
+      );
       return adaptToUnifiedEnvelope(response, useUnifiedEnvelope);
     }
 
@@ -1157,10 +1174,11 @@ export default {
     }
 
     // Default 404
-    return notFoundResponse(
+    const response = notFoundResponse(
       "The requested endpoint does not exist. Use /health to see available endpoints.",
       null,
     );
+    return trackAnalytics(request, response, env, ctx, startTime);
   },
 
   async queue(batch, env, ctx) {
