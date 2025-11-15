@@ -161,8 +161,11 @@ function deduplicateEditions(editions: EditionDTO[]): EditionDTO[] {
 }
 
 /**
- * Sort editions by format priority and publication date
+ * Sort editions by format priority, data quality, and publication date
  * Priority: Hardcover > Paperback > E-book > Audiobook > Other
+ *
+ * Quality tiebreaker ensures ISBNdb editions (quality > 0) rank higher than
+ * Google Books editions (quality = 0) when formats match
  */
 function sortEditions(editions: EditionDTO[]): EditionDTO[] {
   const formatPriority: Record<string, number> = {
@@ -172,17 +175,22 @@ function sortEditions(editions: EditionDTO[]): EditionDTO[] {
     'Audiobook': 4,
     'Other': 5
   };
-  
+
   return editions.sort((a, b) => {
     // First sort by format priority
     const priorityA = formatPriority[a.format] || 5;
     const priorityB = formatPriority[b.format] || 5;
-    
+
     if (priorityA !== priorityB) {
       return priorityA - priorityB;
     }
-    
-    // Then by publication date (newest first)
+
+    // If same format, sort by data quality (ISBNdb > Google Books)
+    if (a.isbndbQuality !== b.isbndbQuality) {
+      return b.isbndbQuality - a.isbndbQuality;
+    }
+
+    // Finally by publication date (newest first)
     const dateA = a.publicationDate || '0000';
     const dateB = b.publicationDate || '0000';
     return dateB.localeCompare(dateA);
