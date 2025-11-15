@@ -263,15 +263,16 @@ export function createSuccessResponse<T>(
 }
 
 /**
- * Create error response object (legacy format - for backward compatibility)
- * 
- * Returns ErrorResponse object with success flag, not a Response.
- * Used by endpoints that need the object format to wrap with Response.json().
+ * Create error envelope object (ResponseEnvelope format)
+ *
+ * Returns ResponseEnvelope<null> object for error cases.
+ * Compliant with API Contract v2.0 (nullable data + optional error).
  *
  * @param message - Error message
  * @param code - Optional error code
  * @param details - Optional error details
- * @returns ErrorResponse object
+ * @param metadata - Optional additional metadata
+ * @returns ResponseEnvelope<null> with error
  *
  * @example
  * return Response.json(createErrorResponseObject('Invalid ISBN', 'INVALID_ISBN'), { status: 400 });
@@ -280,56 +281,57 @@ export function createErrorResponseObject(
   message: string,
   code?: ApiErrorCode | string,
   details?: any,
+  metadata: any = {},
 ): {
-  success: false;
+  data: null;
+  metadata: {
+    timestamp: string;
+    [key: string]: any;
+  };
   error: {
     message: string;
     code?: ApiErrorCode | string;
     details?: any;
   };
-  meta: {
-    timestamp: string;
-  };
 } {
   return {
-    success: false,
-    error: { message, code, details },
-    meta: {
+    data: null,
+    metadata: {
       timestamp: new Date().toISOString(),
+      ...metadata,
     },
+    error: { message, code, details },
   };
 }
 
 /**
- * Create success response object (legacy format - for backward compatibility)
- * 
- * Returns SuccessResponse<T> object with success flag, not a Response.
- * Used by endpoints that need the object format to wrap with Response.json().
+ * Create success envelope object (ResponseEnvelope format)
+ *
+ * Returns ResponseEnvelope<T> object for success cases.
+ * Compliant with API Contract v2.0 (nullable data + optional error).
  *
  * @param data - Success data payload
- * @param meta - Optional metadata
- * @returns SuccessResponse object
+ * @param metadata - Optional metadata
+ * @returns ResponseEnvelope<T> with data
  *
  * @example
  * return Response.json(createSuccessResponseObject({ works: [] }, { cached: true }));
  */
 export function createSuccessResponseObject<T>(
   data: T,
-  meta: any = {},
+  metadata: any = {},
 ): {
-  success: true;
   data: T;
-  meta: {
+  metadata: {
     timestamp: string;
     [key: string]: any;
   };
 } {
   return {
-    success: true,
     data,
-    meta: {
+    metadata: {
       timestamp: new Date().toISOString(),
-      ...meta,
+      ...metadata,
     },
   };
 }
