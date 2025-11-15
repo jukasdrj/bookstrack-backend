@@ -8,7 +8,7 @@
  * This service is called by handlers and coordinates CSV parsing via Gemini,
  * reporting progress updates through a provided progress callback interface.
  * 
- * Related: Issue #XXX - Refactor Monolithic ProgressWebSocketDO
+ * Related: Issue #68 - Refactor Monolithic ProgressWebSocketDO
  */
 
 import { validateCSV } from '../utils/csv-validator.js';

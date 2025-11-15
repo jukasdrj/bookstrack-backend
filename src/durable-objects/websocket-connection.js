@@ -14,7 +14,7 @@ import { DurableObject } from 'cloudflare:workers';
  * - JobStateManagerDO: State persistence
  * - Services: Business logic (csv-processor, batch-enrichment)
  * 
- * Related: Issue #XXX - Refactor Monolithic ProgressWebSocketDO
+ * Related: Issue #68 - Refactor Monolithic ProgressWebSocketDO
  */
 export class WebSocketConnectionDO extends DurableObject {
   constructor(state, env) {
@@ -229,7 +229,8 @@ export class WebSocketConnectionDO extends DurableObject {
       return { timedOut: false, disconnected: false };
     }
 
-    if (!this.webSocket) {
+    // Fix: Check BOTH webSocket AND readyPromise to prevent race condition
+    if (!this.webSocket || !this.readyPromise) {
       return { timedOut: false, disconnected: true };
     }
 
@@ -284,6 +285,19 @@ export class WebSocketConnectionDO extends DurableObject {
       }
     }
     this.cleanup();
+    return { success: true };
+  }
+
+  /**
+   * RPC Method: Clean up stored authentication data
+   * Called by JobStateManagerDO during final cleanup to prevent storage leak
+   *
+   * @returns {Promise<{success: boolean}>}
+   */
+  async cleanupStorage() {
+    await this.storage.delete('authToken');
+    await this.storage.delete('authTokenExpiration');
+    console.log(`[${this.jobId || 'unknown'}] Auth token storage cleaned up`);
     return { success: true };
   }
 

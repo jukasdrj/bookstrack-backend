@@ -14,7 +14,7 @@
  *   await reporter.updateProgress('csv_import', { progress: 0.5, status: 'Processing...' });
  *   await reporter.complete('csv_import', { books: [...] });
  * 
- * Related: Issue #XXX - Refactor Monolithic ProgressWebSocketDO
+ * Related: Issue #68 - Refactor Monolithic ProgressWebSocketDO
  */
 export class ProgressReporter {
   /**

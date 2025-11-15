@@ -64,26 +64,23 @@ export async function handleCSVImport(request, env, ctx) {
 
     if (useRefactoredDOs) {
       // NEW ARCHITECTURE: Separated concerns
-      const { ProgressReporter } = await import('../utils/progress-reporter.js');
-      const { processCSVImport } = await import('../services/csv-processor.js');
+      // Get Durable Object stubs
+      const wsDoId = env.WEBSOCKET_CONNECTION_DO.idFromName(jobId);
+      const wsDoStub = env.WEBSOCKET_CONNECTION_DO.get(wsDoId);
 
-      const reporter = new ProgressReporter(jobId, env);
-      
+      const stateDoId = env.JOB_STATE_MANAGER_DO.idFromName(jobId);
+      const stateDoStub = env.JOB_STATE_MANAGER_DO.get(stateDoId);
+
       // Set authentication token and initialize job state
-      await reporter.setAuthToken(authToken);
-      await reporter.initialize('csv_import', 0);
+      await wsDoStub.setAuthToken(authToken);
+      await stateDoStub.initializeJobState(jobId, 'csv_import', 0);
 
       console.log(`[CSV Import] Using new architecture for job ${jobId}`);
 
-      // Read CSV content and start processing in background
+      // Read CSV content and schedule processing via Durable Object alarm
+      // This avoids ctx.waitUntil() timeout for long-running Gemini API calls (20-60s)
       const csvText = await csvFile.text();
-      
-      // Process CSV in background using ctx.waitUntil() with the service
-      ctx.waitUntil((async () => {
-        // Small delay to ensure HTTP response is sent before processing starts
-        await new Promise(resolve => setTimeout(resolve, 200));
-        await processCSVImport(csvText, reporter, env);
-      })());
+      await stateDoStub.scheduleCSVProcessing(csvText, jobId);
 
     } else {
       // LEGACY ARCHITECTURE: Monolithic ProgressWebSocketDO

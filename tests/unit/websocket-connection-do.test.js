@@ -4,7 +4,7 @@
  * Tests the refactored WebSocket connection management Durable Object.
  * This DO is focused solely on WebSocket lifecycle and authentication.
  * 
- * Related: Issue #XXX - Refactor Monolithic ProgressWebSocketDO
+ * Related: Issue #68 - Refactor Monolithic ProgressWebSocketDO
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';

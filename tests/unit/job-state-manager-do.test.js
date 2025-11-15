@@ -4,7 +4,7 @@
  * Tests the refactored job state management Durable Object.
  * This DO is focused solely on state persistence and coordination.
  * 
- * Related: Issue #XXX - Refactor Monolithic ProgressWebSocketDO
+ * Related: Issue #68 - Refactor Monolithic ProgressWebSocketDO
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';

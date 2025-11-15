@@ -13,7 +13,7 @@ import { DurableObject } from 'cloudflare:workers';
  * - JobStateManagerDO: State persistence (this file)
  * - Services: Business logic (csv-processor, batch-enrichment)
  * 
- * Related: Issue #XXX - Refactor Monolithic ProgressWebSocketDO
+ * Related: Issue #68 - Refactor Monolithic ProgressWebSocketDO
  */
 
 // Pipeline-specific throttling configuration
@@ -162,8 +162,10 @@ export class JobStateManagerDO extends DurableObject {
     await this.storage.setAlarm(Date.now() + (24 * 60 * 60 * 1000));
 
     // Close WebSocket connection after brief delay to ensure message delivery
-    setTimeout(async () => {
-      await wsDoStub.closeConnection('Job completed');
+    setTimeout(() => {
+      wsDoStub.closeConnection('Job completed').catch(err => {
+        console.error(`[JobStateManager] Failed to close connection for job ${jobState.jobId}:`, err);
+      });
     }, 1000);
 
     return { success: true };
@@ -211,8 +213,10 @@ export class JobStateManagerDO extends DurableObject {
     await this.storage.setAlarm(Date.now() + (24 * 60 * 60 * 1000));
 
     // Close WebSocket connection after brief delay to ensure message delivery
-    setTimeout(async () => {
-      await wsDoStub.closeConnection('Job failed');
+    setTimeout(() => {
+      wsDoStub.closeConnection('Job failed').catch(err => {
+        console.error(`[JobStateManager] Failed to close connection for job ${jobState.jobId}:`, err);
+      });
     }, 1000);
 
     return { success: true };
@@ -256,7 +260,7 @@ export class JobStateManagerDO extends DurableObject {
 
   /**
    * RPC Method: Check if job is canceled
-   * 
+   *
    * @returns {Promise<boolean>}
    */
   async isCanceled() {
@@ -265,10 +269,88 @@ export class JobStateManagerDO extends DurableObject {
   }
 
   /**
-   * Alarm handler: Cleanup old job state after 24 hours
+   * RPC Method: Schedule CSV processing via alarm
+   *
+   * @param {string} csvText - Raw CSV content
+   * @param {string} jobId - Job identifier
+   * @returns {Promise<{success: boolean}>}
+   */
+  async scheduleCSVProcessing(csvText, jobId) {
+    await this.storage.put('csvText', csvText);
+    await this.storage.put('processingType', 'csv_import');
+    await this.storage.setAlarm(Date.now()); // Trigger immediately
+    console.log(`[JobStateManager] Scheduled CSV processing for job ${jobId}`);
+    return { success: true };
+  }
+
+  /**
+   * Alarm handler: Process CSV or cleanup old job state
+   *
+   * Handles two scenarios:
+   * 1. CSV processing (triggered immediately after scheduling)
+   * 2. Cleanup after 24 hours (triggered after job completion/failure)
    */
   async alarm() {
-    console.log('[JobStateManager] Cleanup alarm triggered - removing old state');
-    await this.storage.delete('jobState');
+    const processingType = await this.storage.get('processingType');
+
+    if (processingType === 'csv_import') {
+      // CSV processing path
+      console.log('[JobStateManager] Alarm triggered for CSV processing');
+
+      const csvText = await this.storage.get('csvText');
+      const jobState = await this.storage.get('jobState');
+
+      if (!csvText || !jobState) {
+        console.error('[JobStateManager] Missing CSV text or job state in alarm handler');
+        return;
+      }
+
+      // Import CSV processor and progress reporter (in DO context to avoid handler timeout)
+      const { processCSVImport } = await import('../services/csv-processor.js');
+      const { ProgressReporter } = await import('../utils/progress-reporter.js');
+
+      const reporter = new ProgressReporter(jobState.jobId, this.env);
+
+      try {
+        await processCSVImport(csvText, reporter, this.env);
+      } catch (error) {
+        console.error('[JobStateManager] CSV processing failed in alarm:', error);
+
+        // CRITICAL: Update job state to 'failed' so client is notified
+        // Without this, the job would be stuck and user left hanging
+        await reporter.sendError('csv_import', {
+          code: 'E_ALARM_PROCESSING_FAILED',
+          message: error.message || 'CSV processing failed',
+          retryable: true,
+          details: {
+            fallbackAvailable: true,
+            suggestion: 'Try manual CSV import or contact support if issue persists'
+          }
+        });
+      }
+
+      // Clean up temporary storage
+      await this.storage.delete('csvText');
+      await this.storage.delete('processingType');
+
+    } else {
+      // Cleanup path (24 hour cleanup after job completion/failure)
+      console.log('[JobStateManager] Cleanup alarm triggered - removing old state');
+
+      const jobState = await this.storage.get('jobState');
+
+      // Also cleanup WebSocket DO storage
+      if (jobState?.jobId) {
+        try {
+          const wsDoId = this.env.WEBSOCKET_CONNECTION_DO.idFromName(jobState.jobId);
+          const wsDoStub = this.env.WEBSOCKET_CONNECTION_DO.get(wsDoId);
+          await wsDoStub.cleanupStorage();
+        } catch (error) {
+          console.warn('[JobStateManager] Failed to cleanup WebSocket DO storage:', error);
+        }
+      }
+
+      await this.storage.delete('jobState');
+    }
   }
 }

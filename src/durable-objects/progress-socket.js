@@ -29,7 +29,7 @@ import { DurableObject } from 'cloudflare:workers';
  *   - No business logic in Durable Object alarms
  *   - Better scalability (connections and state scale independently)
  * 
- * See: /docs/REFACTORING_PLAN.md for migration guide
+ * See: ARCHITECTURE_OVERVIEW.md for migration guide
  * ============================================================
  */
 // Pipeline-specific throttling configuration

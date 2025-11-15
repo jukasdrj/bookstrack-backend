@@ -4,7 +4,7 @@
  * Tests the extracted CSV processing business logic.
  * This service is now independent of Durable Objects.
  * 
- * Related: Issue #XXX - Refactor Monolithic ProgressWebSocketDO
+ * Related: Issue #68 - Refactor Monolithic ProgressWebSocketDO
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
