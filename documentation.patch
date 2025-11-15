@@ -1,0 +1,13 @@
+diff --git a/docs/QUICK_START.md b/docs/QUICK_START.md
+index a43b4a2..c3f113a 100644
+--- a/docs/QUICK_START.md
++++ b/docs/QUICK_START.md
+@@ -66,7 +66,7 @@ docs/
+
+ ```bash
+ # Local development
+-npm run dev                    # Start wrangler dev server
++npm run dev                    # Start npx wrangler dev server
+
+ # Testing
+ npm test                       # Run all tests
