@@ -343,6 +343,22 @@ export async function findByISBN(isbn, env) {
 
 ## Common Mistakes to Avoid
 
+### ❌ Don't Exceed CPU Time Limits
+```javascript
+// Paid Plan Limits:
+// - HTTP Requests: 5 minutes max CPU time (default: 30 seconds)
+// - Cron Triggers: 15 minutes max CPU time
+// - Queue Consumers: 15 minutes max CPU time
+
+// ❌ BAD - Long CPU-intensive operation in Worker context
+ctx.waitUntil(
+  processLargeCSV(data)  // May timeout if >5min CPU time
+)
+
+// ✅ GOOD - Use Durable Object alarm for long operations
+await doStub.scheduleProcessing(data)  // Alarm runs independently
+```
+
 ### ❌ Don't Block Event Loop
 ```javascript
 // Bad - synchronous blocking
@@ -387,8 +403,9 @@ throw new Error('External API call failed')
 ### Autonomous Project Agents
 
 #### 🚀 cf-ops-monitor (Deployment & Observability)
-**Location:** `.claude/skills/cf-ops-monitor/`
-**Invoke with:** `/skill cf-ops-monitor` or automatically via hooks
+**Location:** `.claude/agents/cf-ops-monitor/`
+**Invoke with:** `@cf-ops-monitor` or automatically via hooks
+**Slash commands:** `/deploy`, `/logs`, `/rollback`, `/cache-check`
 
 **Capabilities:**
 - Execute `wrangler deploy` with health checks
@@ -410,8 +427,9 @@ throw new Error('External API call failed')
 ---
 
 #### ✅ cf-code-reviewer (Code Quality & Best Practices)
-**Location:** `.claude/skills/cf-code-reviewer/`
-**Invoke with:** `/skill cf-code-reviewer` or automatically on code changes
+**Location:** `.claude/agents/cf-code-reviewer/`
+**Invoke with:** `@cf-code-reviewer` or automatically on code changes
+**Slash commands:** `/review`
 
 **Capabilities:**
 - Review Workers-specific patterns (env bindings, KV cache, Durable Objects)
@@ -490,6 +508,18 @@ throw new Error('External API call failed')
 - `wrangler tail` streaming → `cf-ops-monitor`
 
 **Hook Location:** `.claude/hooks/post-tool-use.sh`
+
+### Custom Slash Commands
+
+BooksTrack backend includes productivity slash commands for common operations:
+
+- `/deploy` - Deploy to Cloudflare Workers with health monitoring
+- `/review` - Review code for Workers best practices
+- `/logs [filter]` - Stream and analyze production logs
+- `/rollback` - Rollback to previous deployment
+- `/cache-check` - Inspect KV cache performance
+
+All commands are defined in `.claude/commands/` and automatically invoke the appropriate agents.
 
 ---
 

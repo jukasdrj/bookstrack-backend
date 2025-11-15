@@ -29,9 +29,14 @@
 
 name = "api-worker"
 main = "src/index.js"
-compatibility_date = "2024-10-01"
+compatibility_date = "2025-11-14"  # Use latest available date (2025-11-17 not yet released)
 workers_dev = true
-compatibility_flags = ["nodejs_compat"]
+compatibility_flags = [
+  "nodejs_compat",         # Node.js APIs (already enabled)
+  "enable_request_signal", # Cancel requests on client disconnect
+  "cache_no_cache_enabled" # Better cache control
+  # Note: fixup-transform-stream-backpressure became default as of 2024-12-16
+]
 
 # Custom domain routes (oooefam.net)
 routes = [
@@ -209,10 +214,16 @@ dataset = "bookshelf_ai_performance"
 enabled = true
 head_sampling_rate = 1.0
 
-# Resource limits (from books-api-proxy and bookshelf-ai-worker)
+# Resource limits (Paid Plan)
+# CPU time is actual computation time, not wall-clock duration
+# Network I/O and waiting for external APIs does NOT count toward CPU time
+# - HTTP requests: 5 minutes max CPU time
+# - Durable Object alarms: 15 minutes max CPU time
+# - Cron triggers: 15 minutes max CPU time
+# - Queue consumers: 15 minutes max CPU time
 [limits]
-cpu_ms = 180000  # 3 minutes - increased from 30s to handle large enrichment batches
-memory_mb = 256
+cpu_ms = 300000  # 5 minutes (300,000ms) - maximum for HTTP requests on Paid Plan
+memory_mb = 128  # Standard: 128 MB per isolate (not configurable)
 
 # Placement (from books-api-proxy and bookshelf-ai-worker)
 [placement]
@@ -280,6 +291,14 @@ class_name = "ProgressWebSocketDO"
 [[env.staging.durable_objects.bindings]]
 name = "RATE_LIMITER_DO"
 class_name = "RateLimiterDO"
+
+[[env.staging.durable_objects.bindings]]
+name = "WEBSOCKET_CONNECTION_DO"
+class_name = "WebSocketConnectionDO"
+
+[[env.staging.durable_objects.bindings]]
+name = "JOB_STATE_MANAGER_DO"
+class_name = "JobStateManagerDO"
 
 [[env.staging.analytics_engine_datasets]]
 binding = "PERFORMANCE_ANALYTICS"
