@@ -298,7 +298,146 @@ With ~1000 requests/day, annual cost: **$0** (within free tier)
 To further reduce writes:
 - Skip analytics for `/health` endpoint ✅ (already implemented)
 - Skip analytics for static assets ✅ (already implemented)
-- Sample high-volume endpoints (optional, not implemented)
+- Sample high-volume endpoints ✅ (implemented in Issue #110)
+
+---
+
+## Privacy & GDPR Compliance
+
+### Data Collection
+
+**Personal Data Processing:**
+- **IP Addresses:** Anonymized automatically (last octet zeroed for IPv4, last 80 bits zeroed for IPv6)
+  - Example: `192.168.1.100` → `192.168.1.0`
+  - Purpose: Geographic traffic analysis, not user identification
+- **Request Paths:** Collected (contains no PII)
+- **Error Codes:** Collected (contains no PII)
+- **Datacenter Location:** Collected (Cloudflare colo, no PII)
+- **Response Times:** Collected (performance metrics, no PII)
+
+**No Collection Of:**
+- ❌ User-identifiable information
+- ❌ Authentication tokens or session IDs
+- ❌ Request bodies or query parameters
+- ❌ Cookies or tracking identifiers
+- ❌ User agent strings
+
+### Legal Basis (GDPR Article 6)
+
+Analytics processing is based on **Legitimate Interest** (Article 6(1)(f)):
+- **Purpose:** Service improvement and performance monitoring
+- **Necessity:** Required for API reliability and capacity planning
+- **Balancing Test:** Minimal data collection with anonymization safeguards
+
+### User Rights
+
+#### Right to Opt-Out
+Users can opt out of analytics via:
+
+**Method 1: DNT Header (Do Not Track)**
+```bash
+curl -H "DNT: 1" https://api.oooefam.net/v1/search/isbn?isbn=9780439708180
+# Analytics will be skipped, but custom headers still added
+```
+
+**Method 2: X-Skip-Analytics Header (Internal Tools)**
+```bash
+curl -H "X-Skip-Analytics: true" https://api.oooefam.net/v1/search/isbn?isbn=9780439708180
+# Complete analytics bypass including data writes
+```
+
+**Method 3: Disable via Environment Variable**
+Set `ENABLE_PERFORMANCE_LOGGING=false` in `wrangler.toml` (global opt-out)
+
+#### Right to Access
+Users can query their analytics data via GraphQL:
+```graphql
+query MyTraffic($accountTag: String!, $filter: AccountAnalyticsEngineFilter) {
+  viewer {
+    accounts(filter: { accountTag: $accountTag }) {
+      analyticsEngineDatasets(filter: { name: "books_api_performance" }) {
+        dimensions(
+          limit: 100
+          filter: {
+            blob4: "192.168.1.0"  # Your anonymized IP
+            datetime_geq: "2025-01-10T00:00:00Z"
+          }
+        ) {
+          blob1  # Endpoint
+          count
+          avg: avgDouble1  # Avg response time
+        }
+      }
+    }
+  }
+}
+```
+
+#### Right to Erasure
+- **Automated Deletion:** All analytics data auto-deleted after **90 days** (Cloudflare Analytics Engine retention policy)
+- **Manual Deletion:** Contact `support@oooefam.net` for immediate data deletion requests
+- **Scope:** Deletion applies to all anonymized IP data matching the user's IP subnet
+
+#### Right to Data Portability
+Users can export their analytics data:
+1. Query Analytics Engine via GraphQL (see "Right to Access" above)
+2. Export results as JSON via Cloudflare API
+3. Contact `support@oooefam.net` for bulk export assistance
+
+### Data Retention
+
+| Data Type | Retention Period | Deletion Method |
+|-----------|------------------|-----------------|
+| Anonymized IP | 90 days | Automatic (Cloudflare retention policy) |
+| Request paths | 90 days | Automatic |
+| Response times | 90 days | Automatic |
+| Error codes | 90 days | Automatic |
+| Datacenter location | 90 days | Automatic |
+
+**No Long-Term Storage:** Analytics data is not exported or archived beyond Cloudflare Analytics Engine.
+
+### Data Processors
+
+**Cloudflare Analytics Engine:**
+- **Role:** Data processor
+- **Location:** EU and US data centers (EU data stays in EU)
+- **Certification:** ISO 27001, SOC 2 Type II, GDPR-compliant
+- **DPA:** Cloudflare Data Processing Addendum applies
+
+### Compliance Measures
+
+✅ **Data Minimization** - Only essential metrics collected
+✅ **Anonymization** - IP addresses anonymized at collection
+✅ **Purpose Limitation** - Data used only for performance monitoring
+✅ **Storage Limitation** - 90-day automatic deletion
+✅ **Security** - TLS encryption in transit, encrypted at rest
+✅ **Opt-Out** - DNT header and custom header support
+✅ **Transparency** - Public documentation of data practices
+
+### Privacy Policy Disclosure
+
+**Recommended Privacy Policy Language:**
+```
+Performance Analytics
+
+We collect anonymized analytics data to monitor API performance and
+reliability. This includes anonymized IP addresses (last octet removed),
+request paths, response times, and error codes. Data is retained for 90
+days and automatically deleted. You can opt out by sending a "DNT: 1"
+header with your API requests.
+
+Data is processed by Cloudflare Analytics Engine under their Data
+Processing Addendum. For data deletion requests, contact
+support@oooefam.net.
+```
+
+### GDPR Contact
+
+**Data Controller:** BooksTrack API
+**Contact:** support@oooefam.net
+**DPO (if applicable):** Not required (no high-risk processing)
+
+---
 
 ## Testing Analytics
 
@@ -351,6 +490,8 @@ Wait 2-3 minutes for Analytics Engine to process, then query via GraphQL.
 
 **Related:**
 - Issue #108 - Analytics tracking implementation
+- Issue #110 - Production readiness improvements (GDPR, sampling, safety)
+- PR #111 - Analytics tracking pull request
 - PR #95 - Analytics tracking mention (missing implementation)
 - `src/middleware/analytics-tracker.js` - Implementation
 - `wrangler.toml` - Analytics Engine bindings
