@@ -29,9 +29,14 @@
 
 name = "api-worker"
 main = "src/index.js"
-compatibility_date = "2024-10-01"
+compatibility_date = "2025-11-14"  # Use latest available date (2025-11-17 not yet released)
 workers_dev = true
-compatibility_flags = ["nodejs_compat"]
+compatibility_flags = [
+  "nodejs_compat",         # Node.js APIs (already enabled)
+  "enable_request_signal", # Cancel requests on client disconnect
+  "cache_no_cache_enabled" # Better cache control
+  # Note: fixup-transform-stream-backpressure became default as of 2024-12-16
+]
 
 # Custom domain routes (oooefam.net)
 routes = [
@@ -72,6 +77,11 @@ MAX_SCAN_FILE_SIZE = "10485760"
 # All API responses use the unified envelope format: { data, metadata, error? }
 # Legacy format with success discriminator has been deprecated.
 ENABLE_UNIFIED_ENVELOPE = "true"
+
+# Durable Object Architecture Refactoring (Phase 2 - Architectural Cleanup)
+# When true: Uses refactored architecture (WebSocketConnectionDO + JobStateManagerDO + Services)
+# When false: Uses legacy monolithic ProgressWebSocketDO (default for backward compatibility)
+ENABLE_REFACTORED_DOS = "false"  # Default: legacy architecture
 
 # KV Namespaces (consolidated from books-api-proxy and external-apis-worker)
 # Note: Set remote = true to access production KV during local development (Wrangler v4.37+)
@@ -160,6 +170,15 @@ class_name = "ProgressWebSocketDO"
 name = "RATE_LIMITER_DO"
 class_name = "RateLimiterDO"
 
+# New refactored Durable Objects (Phase 2: Architectural Refactoring)
+[[durable_objects.bindings]]
+name = "WEBSOCKET_CONNECTION_DO"
+class_name = "WebSocketConnectionDO"
+
+[[durable_objects.bindings]]
+name = "JOB_STATE_MANAGER_DO"
+class_name = "JobStateManagerDO"
+
 # Durable Object migrations
 [[migrations]]
 tag = "v1"
@@ -168,6 +187,10 @@ new_classes = ["ProgressWebSocketDO"]
 [[migrations]]
 tag = "v2"
 new_classes = ["RateLimiterDO"]
+
+[[migrations]]
+tag = "v3"
+new_classes = ["WebSocketConnectionDO", "JobStateManagerDO"]
 
 # Analytics Engine (merged from books-api-proxy and bookshelf-ai-worker)
 [[analytics_engine_datasets]]
@@ -191,10 +214,16 @@ dataset = "bookshelf_ai_performance"
 enabled = true
 head_sampling_rate = 1.0
 
-# Resource limits (from books-api-proxy and bookshelf-ai-worker)
+# Resource limits (Paid Plan)
+# CPU time is actual computation time, not wall-clock duration
+# Network I/O and waiting for external APIs does NOT count toward CPU time
+# - HTTP requests: 5 minutes max CPU time
+# - Durable Object alarms: 15 minutes max CPU time
+# - Cron triggers: 15 minutes max CPU time
+# - Queue consumers: 15 minutes max CPU time
 [limits]
-cpu_ms = 180000  # 3 minutes - increased from 30s to handle large enrichment batches
-memory_mb = 256
+cpu_ms = 300000  # 5 minutes (300,000ms) - maximum for HTTP requests on Paid Plan
+memory_mb = 128  # Standard: 128 MB per isolate (not configurable)
 
 # Placement (from books-api-proxy and bookshelf-ai-worker)
 [placement]
@@ -226,9 +255,71 @@ crons = [
 # ====================================================================================
 
 [env.staging]
-name = "books-api-proxy-staging"
-workers_dev = true
+name = "api-worker-staging"
+routes = [
+  { pattern = "staging-api.oooefam.net/*", zone_name = "oooefam.net" }
+]
 
-[env.staging.vars]
-# Staging-specific log level (more verbose)
-LOG_LEVEL = "DEBUG"
+[[env.staging.kv_namespaces]]
+binding = "CACHE"
+id = "STAGING_KV_ID_1"
+
+[[env.staging.kv_namespaces]]
+binding = "KV_CACHE"
+id = "STAGING_KV_ID_1"
+
+[[env.staging.r2_buckets]]
+binding = "API_CACHE_COLD"
+bucket_name = "personal-library-data-staging"
+
+[[env.staging.r2_buckets]]
+binding = "LIBRARY_DATA"
+bucket_name = "personal-library-data-staging"
+
+[[env.staging.r2_buckets]]
+binding = "BOOKSHELF_IMAGES"
+bucket_name = "bookshelf-images-staging"
+
+[[env.staging.r2_buckets]]
+binding = "BOOK_COVERS"
+bucket_name = "bookstrack-covers-staging"
+
+[[env.staging.durable_objects.bindings]]
+name = "PROGRESS_WEBSOCKET_DO"
+class_name = "ProgressWebSocketDO"
+
+[[env.staging.durable_objects.bindings]]
+name = "RATE_LIMITER_DO"
+class_name = "RateLimiterDO"
+
+[[env.staging.durable_objects.bindings]]
+name = "WEBSOCKET_CONNECTION_DO"
+class_name = "WebSocketConnectionDO"
+
+[[env.staging.durable_objects.bindings]]
+name = "JOB_STATE_MANAGER_DO"
+class_name = "JobStateManagerDO"
+
+[[env.staging.analytics_engine_datasets]]
+binding = "PERFORMANCE_ANALYTICS"
+dataset = "books_api_performance_staging"
+
+[[env.staging.analytics_engine_datasets]]
+binding = "CACHE_ANALYTICS"
+dataset = "books_api_cache_metrics_staging"
+
+[[env.staging.analytics_engine_datasets]]
+binding = "PROVIDER_ANALYTICS"
+dataset = "books_api_provider_performance_staging"
+
+[[env.staging.analytics_engine_datasets]]
+binding = "AI_ANALYTICS"
+dataset = "bookshelf_ai_performance_staging"
+
+[[env.staging.queues.producers]]
+binding = "AUTHOR_WARMING_QUEUE"
+queue = "author-warming-queue-staging"
+
+[[env.staging.queues.consumers]]
+queue = "author-warming-queue-staging"
+dead_letter_queue = "author-warming-dlq-staging"

@@ -231,6 +231,7 @@ export async function searchGoogleBooks(
           "User-Agent": GOOGLE_BOOKS_USER_AGENT,
           Accept: "application/json",
         },
+        cache: 'no-cache', // Force revalidation with Google Books API
       });
 
       if (!response.ok) {
@@ -278,6 +279,7 @@ export async function searchGoogleBooksByISBN(
           "User-Agent": GOOGLE_BOOKS_USER_AGENT,
           Accept: "application/json",
         },
+        cache: 'no-cache', // Force revalidation with Google Books API
       });
 
       if (!response.ok) {

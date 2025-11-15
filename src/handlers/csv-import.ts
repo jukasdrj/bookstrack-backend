@@ -11,7 +11,7 @@ import { validateCSV } from '../utils/csv-validator.js';
 import { buildCSVParserPrompt, PROMPT_VERSION } from '../prompts/csv-parser-prompt.js';
 import { generateCSVCacheKey } from '../utils/cache-keys.js';
 import { parseCSVWithGemini } from '../providers/gemini-csv-provider.js';
-import { createSuccessResponseObject, createErrorResponseObject, ErrorCodes } from '../utils/response-builder.js';
+import { createSuccessResponse, createErrorResponse, ErrorCodes } from '../utils/response-builder.js';
 import type { CSVImportInitResponse } from '../types/responses.js';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -19,8 +19,13 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 /**
  * Handle CSV import request (POST /api/import/csv-gemini)
  *
- * Uses Durable Object alarm to avoid ctx.waitUntil() timeout (Issue #249)
- * Long-running Gemini API calls (20-60s) exceed Workers inactivity limits
+ * Uses Durable Object alarm to avoid Worker CPU time limits (Issue #249)
+ * Long-running Gemini API calls (20-60s) exceed default 30-second CPU time limit
+ * Paid Plan: 5-minute max per invocation, but Durable Object alarms better for long operations
+ *
+ * Feature Flag: ENABLE_REFACTORED_DOS (new architecture with separated concerns)
+ * - When true: Uses WebSocketConnectionDO + JobStateManagerDO + CSV Processor Service
+ * - When false: Uses legacy ProgressWebSocketDO (default for backward compatibility)
  *
  * @param {Request} request - Incoming request with FormData containing CSV file
  * @param {Object} env - Worker environment bindings
@@ -33,44 +38,70 @@ export async function handleCSVImport(request, env, ctx) {
     const csvFile = formData.get('file');
 
     if (!csvFile) {
-      return Response.json(
-        createErrorResponseObject('No file provided', ErrorCodes.MISSING_PARAMETER),
-        { status: 400 }
+      return createErrorResponse(
+        'No file provided',
+        400,
+        ErrorCodes.MISSING_PARAMETER
       );
     }
 
     // Check file size
     if (csvFile.size > MAX_FILE_SIZE) {
-      return Response.json(
-        createErrorResponseObject('CSV file too large (max 10MB)', ErrorCodes.FILE_TOO_LARGE, {
-          suggestion: 'Try splitting your CSV into smaller files or removing unnecessary columns'
-        }),
-        { status: 413 }
+      return createErrorResponse(
+        'CSV file too large (max 10MB)',
+        413,
+        ErrorCodes.FILE_TOO_LARGE,
+        { suggestion: 'Try splitting your CSV into smaller files or removing unnecessary columns' }
       );
     }
 
     // Generate jobId
     const jobId = crypto.randomUUID();
 
-    // Get WebSocket DO stub
-    const doId = env.PROGRESS_WEBSOCKET_DO.idFromName(jobId);
-    const doStub = env.PROGRESS_WEBSOCKET_DO.get(doId);
-
     // SECURITY: Generate authentication token for WebSocket connection
     const authToken = crypto.randomUUID();
-    await doStub.setAuthToken(authToken);
 
-    console.log(`[CSV Import] Auth token generated for job ${jobId}`);
+    // Feature flag: Use new refactored architecture or legacy monolithic DO
+    const useRefactoredDOs = env.ENABLE_REFACTORED_DOS === 'true';
 
-    // Initialize job state for CSV import (CRITICAL: Must be done BEFORE returning response)
-    // This sets currentPipeline so ready_ack messages will have the correct pipeline field
-    // Note: totalCount is unknown at this stage (Gemini parses CSV in alarm), so pass 0
-    await doStub.initializeJobState('csv_import', 0);
+    if (useRefactoredDOs) {
+      // NEW ARCHITECTURE: Separated concerns
+      // Get Durable Object stubs
+      const wsDoId = env.WEBSOCKET_CONNECTION_DO.idFromName(jobId);
+      const wsDoStub = env.WEBSOCKET_CONNECTION_DO.get(wsDoId);
 
-    // Read CSV content and schedule processing via Durable Object alarm
-    // This avoids ctx.waitUntil() timeout for long-running Gemini API calls
-    const csvText = await csvFile.text();
-    await doStub.scheduleCSVProcessing(csvText, jobId);
+      const stateDoId = env.JOB_STATE_MANAGER_DO.idFromName(jobId);
+      const stateDoStub = env.JOB_STATE_MANAGER_DO.get(stateDoId);
+
+      // Set authentication token and initialize job state
+      await wsDoStub.setAuthToken(authToken);
+      await stateDoStub.initializeJobState(jobId, 'csv_import', 0);
+
+      console.log(`[CSV Import] Using new architecture for job ${jobId}`);
+
+      // Read CSV content and schedule processing via Durable Object alarm
+      // This avoids Worker CPU time limits for long-running Gemini API calls (20-60s)
+      // Paid Plan allows 5-minute max, but alarm-based processing is architecturally superior
+      const csvText = await csvFile.text();
+      await stateDoStub.scheduleCSVProcessing(csvText, jobId);
+
+    } else {
+      // LEGACY ARCHITECTURE: Monolithic ProgressWebSocketDO
+      const doId = env.PROGRESS_WEBSOCKET_DO.idFromName(jobId);
+      const doStub = env.PROGRESS_WEBSOCKET_DO.get(doId);
+
+      await doStub.setAuthToken(authToken);
+      console.log(`[CSV Import] Auth token generated for job ${jobId}`);
+
+      // Initialize job state for CSV import
+      await doStub.initializeJobState('csv_import', 0);
+
+      // Read CSV content and schedule processing via Durable Object alarm
+      const csvText = await csvFile.text();
+      await doStub.scheduleCSVProcessing(csvText, jobId);
+
+      console.log(`[CSV Import] Using legacy architecture for job ${jobId}`);
+    }
 
     // Return typed CSVImportInitResponse
     const initResponse: CSVImportInitResponse = {
@@ -78,16 +109,10 @@ export async function handleCSVImport(request, env, ctx) {
       token: authToken // WebSocket authentication token
     };
 
-    return Response.json(
-      createSuccessResponseObject(initResponse, {}),
-      { status: 202 }
-    );
+    return createSuccessResponse(initResponse, {}, 202);
 
   } catch (error) {
-    return Response.json(
-      createErrorResponseObject(error.message, ErrorCodes.INTERNAL_ERROR),
-      { status: 500 }
-    );
+    return createErrorResponse(error.message, 500, ErrorCodes.INTERNAL_ERROR);
   }
 }
 
@@ -146,9 +171,10 @@ export async function processCSVImportCore(csvText, jobId, doStub, env) {
     let parsedBooks = await env.KV_CACHE.get(cacheKey, 'json');
 
     if (!parsedBooks) {
-      // NOTE: setInterval keep-alive removed - it doesn't prevent waitUntil() timeout
-      // because async callbacks don't register as I/O activity in Workers runtime.
+      // NOTE: setInterval keep-alive removed - it doesn't prevent CPU time limits
+      // because async callbacks don't count toward I/O activity in Workers runtime.
       // Gemini 2.0 Flash typically responds in <20 seconds for CSV parsing.
+      // Paid Plan: 30M CPU milliseconds/month, 5-minute max per invocation
       const prompt = buildCSVParserPrompt();
       parsedBooks = await callGemini(csvText, prompt, env);
 

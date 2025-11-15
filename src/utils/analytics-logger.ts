@@ -22,7 +22,7 @@ import type { DataProvider } from "../types/enums";
  * Environment bindings required for the analytics logger.
  */
 export interface AnalyticsEnv {
-  ANALYTICS_ENGINE?: AnalyticsEngineDataset;
+  PROVIDER_ANALYTICS?: AnalyticsEngineDataset;
 }
 
 /**
@@ -59,11 +59,11 @@ export async function logExternalApiCall<T>(
     const result = await apiCallFn();
     const processingTime = Date.now() - startTime;
 
-    if (env.ANALYTICS_ENGINE) {
+    if (env.PROVIDER_ANALYTICS) {
       const { query, isbn } = params;
       const eventType = isbn ? "isbn_search" : "search";
 
-      env.ANALYTICS_ENGINE.writeDataPoint({
+      env.PROVIDER_ANALYTICS.writeDataPoint({
         blobs: [query || isbn, eventType, provider],
         doubles: [
           processingTime,
@@ -77,11 +77,11 @@ export async function logExternalApiCall<T>(
   } catch (error) {
     const processingTime = Date.now() - startTime;
 
-    if (env.ANALYTICS_ENGINE) {
+    if (env.PROVIDER_ANALYTICS) {
       const { query, isbn } = params;
       const eventType = isbn ? "isbn_search_error" : "search_error";
 
-      env.ANALYTICS_ENGINE.writeDataPoint({
+      env.PROVIDER_ANALYTICS.writeDataPoint({
         blobs: [query || isbn, eventType, provider, error.message],
         doubles: [processingTime, 0],
         indexes: [`${provider.toLowerCase()}-error`],
