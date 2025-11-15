@@ -3,9 +3,13 @@
  *
  * Centralized utilities for creating consistent HTTP responses with proper
  * headers and formatting. Reduces code duplication across route handlers.
+ * 
+ * This is the single source of truth for all API response generation.
+ * All handlers should use these utilities for consistent response formats.
  */
 
 import { getCorsHeaders } from "../middleware/cors.js";
+import type { ApiErrorCode } from "../types/enums.js";
 
 /**
  * Create a JSON response with proper headers
@@ -138,4 +142,194 @@ export function notFoundResponse(
   corsRequest: Request | null = null,
 ): Response {
   return errorResponse("NOT_FOUND", message, 404, corsRequest);
+}
+
+/**
+ * Standard error codes for consistent error handling across the API
+ * 
+ * These codes are used in error responses to provide machine-readable
+ * error types that clients can handle programmatically.
+ */
+export const ErrorCodes = {
+  // Request validation errors (4xx)
+  MISSING_PARAMETER: 'MISSING_PARAMETER',
+  INVALID_REQUEST: 'INVALID_REQUEST',
+  INVALID_ISBN: 'INVALID_ISBN',
+  INVALID_QUERY: 'INVALID_QUERY',
+  INVALID_FILE: 'INVALID_FILE',
+  FILE_TOO_LARGE: 'FILE_TOO_LARGE',
+  BATCH_TOO_LARGE: 'BATCH_TOO_LARGE',
+  EMPTY_BATCH: 'EMPTY_BATCH',
+  
+  // Resource errors (4xx)
+  NOT_FOUND: 'NOT_FOUND',
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  FORBIDDEN: 'FORBIDDEN',
+  
+  // External service errors (5xx or 4xx)
+  RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
+  PROVIDER_ERROR: 'PROVIDER_ERROR',
+  PROVIDER_TIMEOUT: 'PROVIDER_TIMEOUT',
+  CACHE_ERROR: 'CACHE_ERROR',
+  
+  // Internal errors (5xx)
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+} as const;
+
+/**
+ * Create error response using ResponseEnvelope format (new format)
+ * 
+ * This matches the format used by api-responses.ts and is used for
+ * endpoints that need the envelope structure with data/metadata/error.
+ *
+ * @param message - Human-readable error message
+ * @param status - HTTP status code
+ * @param code - Optional error code
+ * @param details - Optional additional error details
+ * @param corsRequest - Optional request for CORS headers
+ * @returns Response object with envelope error structure
+ *
+ * @example
+ * return createErrorResponse('Resource not found', 404, 'NOT_FOUND');
+ * return createErrorResponse('Internal error', 500);
+ */
+export function createErrorResponse(
+  message: string,
+  status: number = 500,
+  code?: string,
+  details?: any,
+  corsRequest: Request | null = null,
+): Response {
+  console.error(`Error [${code || 'UNKNOWN'}]:`, message);
+  
+  const envelope = {
+    data: null,
+    metadata: {
+      timestamp: new Date().toISOString(),
+    },
+    error: {
+      message,
+      code,
+      details,
+    },
+  };
+
+  return new Response(JSON.stringify(envelope), {
+    status,
+    headers: {
+      ...(corsRequest ? getCorsHeaders(corsRequest) : {}),
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+/**
+ * Create success response using ResponseEnvelope format (new format)
+ * 
+ * This matches the format used by api-responses.ts and is used for
+ * endpoints that need the envelope structure with data/metadata.
+ *
+ * @param data - Success data payload
+ * @param metadata - Optional metadata object
+ * @param status - HTTP status code (default: 200)
+ * @param corsRequest - Optional request for CORS headers
+ * @returns Response object with envelope success structure
+ *
+ * @example
+ * return createSuccessResponse({ book: bookData }, { cached: true });
+ * return createSuccessResponse(initResponse, {}, 202);
+ */
+export function createSuccessResponse<T>(
+  data: T,
+  metadata: any = {},
+  status: number = 200,
+  corsRequest: Request | null = null,
+): Response {
+  const envelope = {
+    data,
+    metadata: {
+      timestamp: new Date().toISOString(),
+      ...metadata,
+    },
+  };
+
+  return new Response(JSON.stringify(envelope), {
+    status,
+    headers: {
+      ...(corsRequest ? getCorsHeaders(corsRequest) : {}),
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+/**
+ * Create error response object (legacy format - for backward compatibility)
+ * 
+ * Returns ErrorResponse object with success flag, not a Response.
+ * Used by endpoints that need the object format to wrap with Response.json().
+ *
+ * @param message - Error message
+ * @param code - Optional error code
+ * @param details - Optional error details
+ * @returns ErrorResponse object
+ *
+ * @example
+ * return Response.json(createErrorResponseObject('Invalid ISBN', 'INVALID_ISBN'), { status: 400 });
+ */
+export function createErrorResponseObject(
+  message: string,
+  code?: ApiErrorCode | string,
+  details?: any,
+): {
+  success: false;
+  error: {
+    message: string;
+    code?: ApiErrorCode | string;
+    details?: any;
+  };
+  meta: {
+    timestamp: string;
+  };
+} {
+  return {
+    success: false,
+    error: { message, code, details },
+    meta: {
+      timestamp: new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Create success response object (legacy format - for backward compatibility)
+ * 
+ * Returns SuccessResponse<T> object with success flag, not a Response.
+ * Used by endpoints that need the object format to wrap with Response.json().
+ *
+ * @param data - Success data payload
+ * @param meta - Optional metadata
+ * @returns SuccessResponse object
+ *
+ * @example
+ * return Response.json(createSuccessResponseObject({ works: [] }, { cached: true }));
+ */
+export function createSuccessResponseObject<T>(
+  data: T,
+  meta: any = {},
+): {
+  success: true;
+  data: T;
+  meta: {
+    timestamp: string;
+    [key: string]: any;
+  };
+} {
+  return {
+    success: true,
+    data,
+    meta: {
+      timestamp: new Date().toISOString(),
+      ...meta,
+    },
+  };
 }
