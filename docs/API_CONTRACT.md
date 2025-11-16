@@ -1357,7 +1357,7 @@ queued → processing → complete | error
 
 | Limit | Value | Reason |
 |-------|-------|--------|
-| **Min Photos** | 1 | Single photo uses different endpoint |
+| **Min Photos** | 1 | Single photo uses `/api/scan-bookshelf` endpoint |
 | **Max Photos** | 5 | AI processing time (5 photos × 10s = 50s max) |
 | **Max Photo Size** | 10 MB | Gemini API limit |
 | **Total Upload Size** | 50 MB | 5 photos × 10 MB each |
