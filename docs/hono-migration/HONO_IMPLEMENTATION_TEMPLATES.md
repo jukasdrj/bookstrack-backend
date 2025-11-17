@@ -1,8 +1,8 @@
 # Hono Implementation Templates - Ready-to-Use Code
 
-**Related:** HONO_MIGRATION_PLAN.md, HONO_COEXISTENCE_PATTERNS.md  
-**Status:** Planning Phase (Copy-Paste Ready)  
-**Created:** November 17, 2025
+**Related:** HONO_MIGRATION_PLAN.md, HONO_COEXISTENCE_PATTERNS.md
+**Status:** Planning Phase (Copy-Paste Ready)
+**Created:** November 16, 2025
 
 ---
 
@@ -543,7 +543,7 @@ export default {
 **File:** `tests/router.test.js` (new file)
 
 ```typescript
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { unstable_dev } from 'wrangler'
 
 describe('Hono Router Tests', () => {
@@ -794,6 +794,6 @@ wrangler deploy
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** November 17, 2025  
+**Document Version:** 1.0
+**Last Updated:** November 16, 2025
 **Status:** Ready for Implementation
