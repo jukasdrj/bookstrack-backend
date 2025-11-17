@@ -82,22 +82,30 @@ npm run test:watch         # Watch mode for development
 
 ### Canonical Response Format
 
-All endpoints must follow this structure:
+All endpoints must follow this structure (see `docs/API_CONTRACT.md` lines 152-220):
 
 ```typescript
 // Success response
 {
-  "success": true,
   "data": { /* resource data */ },
-  "meta": { /* pagination, counts, etc */ }
+  "metadata": {
+    "timestamp": "2024-06-01T12:34:56.789Z",
+    // ... other metadata fields (pagination, counts, etc)
+  },
+  // error is omitted or undefined
 }
 
 // Error response
 {
-  "success": false,
+  "data": null,
+  "metadata": {
+    "timestamp": "2024-06-01T12:34:56.789Z"
+    // ... other metadata fields
+  },
   "error": {
+    "message": "Human-readable error message",
     "code": "ERROR_CODE",
-    "message": "Human-readable error message"
+    "details": { /* optional error details */ }
   }
 }
 ```
