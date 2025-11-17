@@ -176,7 +176,7 @@ import { normalizeISBN } from './utils/isbn.js'
 ### Key Documents to Reference
 
 1. **[README.md](../README.md)** - Repository overview and quick start
-2. **[CONTRIBUTING.md](./.github/CONTRIBUTING.md)** - Contribution guidelines
+2. **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contribution guidelines
 3. **[API_CONTRACT.md](../docs/API_CONTRACT.md)** - API specifications (MUST READ)
 4. **[AGENTS.md](../AGENTS.md)** - Custom AI agents available
 5. **[ARCHITECTURE_OVERVIEW.md](../ARCHITECTURE_OVERVIEW.md)** - System architecture
