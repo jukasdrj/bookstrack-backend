@@ -45,6 +45,7 @@ import {
   trackRequestMetrics,
   addAnalyticsHeaders,
 } from "./utils/analytics.js";
+import honoRouter from "./router.ts";
 
 // Export the Durable Object classes for Cloudflare Workers runtime
 export {
@@ -56,6 +57,26 @@ export {
 
 export default {
   async fetch(request, env, ctx) {
+    // ========================================================================
+    // FEATURE FLAG: Hono Router (Phase 1 MVP)
+    // ========================================================================
+    // When ENABLE_HONO_ROUTER=true, route requests through Hono framework
+    // Otherwise, use existing manual routing (default)
+    //
+    // This allows A/B testing and gradual migration with zero production risk
+    // Rollback: Set ENABLE_HONO_ROUTER=false (<60 seconds)
+    // ========================================================================
+    const useHono = env.ENABLE_HONO_ROUTER === 'true'
+
+    if (useHono) {
+      console.log('[Router] Using Hono router (feature flag enabled)')
+      return honoRouter.fetch(request, env, ctx)
+    }
+
+    // ========================================================================
+    // Manual Router (Legacy - Default)
+    // ========================================================================
+    console.log('[Router] Using manual router (feature flag disabled)')
     const startTime = Date.now();
     const url = new URL(request.url);
     let response;
