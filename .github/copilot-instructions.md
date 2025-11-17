@@ -331,23 +331,23 @@ return jsonResponse({
 // Validate required parameters
 const isbn = url.searchParams.get('isbn')
 if (!isbn) {
-  return jsonResponse({
-    success: false,
+  return createErrorResponse({
     error: {
       code: 'MISSING_PARAMETER',
       message: 'ISBN parameter is required'
-    }
+    },
+    data: null
   }, 400)
 }
 
 // Validate format
 if (!isValidISBN(isbn)) {
-  return jsonResponse({
-    success: false,
+  return createErrorResponse({
     error: {
       code: 'INVALID_ISBN',
       message: 'Invalid ISBN format'
-    }
+    },
+    data: null
   }, 400)
 }
 ```
