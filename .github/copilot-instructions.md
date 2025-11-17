@@ -306,31 +306,25 @@ return data
 
 ```javascript
 // 400 Bad Request - Invalid input
-return jsonResponse({
-  success: false,
-  error: {
-    code: 'INVALID_ISBN',
-    message: 'ISBN must be 10 or 13 digits'
-  }
-}, 400)
+return createErrorResponse(
+  'ISBN must be 10 or 13 digits',
+  400,
+  ErrorCodes.INVALID_ISBN
+)
 
 // 404 Not Found - Resource not found
-return jsonResponse({
-  success: false,
-  error: {
-    code: 'BOOK_NOT_FOUND',
-    message: 'No book found for the given ISBN'
-  }
-}, 404)
+return createErrorResponse(
+  'No book found for the given ISBN',
+  404,
+  ErrorCodes.NOT_FOUND
+)
 
 // 500 Internal Server Error - Unexpected error
-return jsonResponse({
-  success: false,
-  error: {
-    code: 'INTERNAL_ERROR',
-    message: 'An unexpected error occurred'
-  }
-}, 500)
+return createErrorResponse(
+  'An unexpected error occurred',
+  500,
+  ErrorCodes.INTERNAL_ERROR
+)
 ```
 
 ### Input Validation
