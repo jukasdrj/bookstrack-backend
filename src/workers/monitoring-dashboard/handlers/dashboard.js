@@ -1,0 +1,461 @@
+/**
+ * Handle dashboard UI request
+ * 
+ * Returns the monitoring dashboard HTML page inline.
+ * 
+ * @param {Request} request
+ * @param {Object} env
+ * @returns {Response}
+ */
+export async function handleDashboard(request, env) {
+  // Inline HTML to avoid file system dependencies in Workers
+  const dashboardHTML = getDashboardHTML();
+
+  return new Response(dashboardHTML, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    },
+  });
+}
+
+function getDashboardHTML() {
+  // This would normally be in a separate file, but Workers don't support file imports
+  // For production, consider using a build step to inline this
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BooksTrack Monitoring Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 { font-size: 32px; font-weight: 700; color: #667eea; margin-bottom: 8px; }
+        .subtitle { color: #666; font-size: 14px; }
+        .controls { display: flex; gap: 12px; margin-top: 16px; }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background: #667eea;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn:hover { background: #5568d3; transform: translateY(-2px); }
+        .btn.secondary { background: #f3f4f6; color: #374151; }
+        .btn.secondary:hover { background: #e5e7eb; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+        }
+        .card:hover { transform: translateY(-4px); }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .card-title { font-size: 18px; font-weight: 600; color: #1f2937; }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-healthy { background: #d1fae5; color: #065f46; }
+        .status-degraded { background: #fed7aa; color: #92400e; }
+        .status-critical { background: #fecaca; color: #991b1b; }
+        .metric { margin-bottom: 16px; }
+        .metric:last-child { margin-bottom: 0; }
+        .metric-label { font-size: 13px; color: #6b7280; margin-bottom: 4px; }
+        .metric-value { font-size: 28px; font-weight: 700; color: #1f2937; }
+        .metric-value.small { font-size: 20px; }
+        .metric-unit { font-size: 14px; color: #9ca3af; margin-left: 4px; }
+        .progress-bar {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+        }
+        .progress-fill.warning { background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%); }
+        .progress-fill.critical { background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%); }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .stat-item { padding: 12px; background: #f9fafb; border-radius: 8px; }
+        .stat-label { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+        .stat-value { font-size: 18px; font-weight: 600; color: #1f2937; }
+        .alert-list { margin-top: 12px; }
+        .alert-item {
+            padding: 12px;
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .alert-item.critical { background: #fee2e2; border-left-color: #ef4444; }
+        .alert-message { font-size: 14px; color: #1f2937; margin-bottom: 4px; }
+        .alert-time { font-size: 12px; color: #6b7280; }
+        .loading { text-align: center; padding: 40px; color: #6b7280; }
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .last-updated { text-align: center; color: white; margin-top: 24px; font-size: 14px; }
+        .error-message {
+            background: #fee2e2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 BooksTrack Monitoring Dashboard</h1>
+            <p class="subtitle">Real-time infrastructure monitoring and performance analytics</p>
+            <div class="controls">
+                <button class="btn" onclick="refreshDashboard()">🔄 Refresh Now</button>
+                <button class="btn secondary" id="auto-refresh-btn" onclick="toggleAutoRefresh()">⏸️ Pause Auto-Refresh</button>
+            </div>
+        </header>
+
+        <div id="error-container"></div>
+        <div id="loading" class="card loading">
+            <div class="spinner"></div>
+            <p>Loading dashboard data...</p>
+        </div>
+        <div id="dashboard-content" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">System Health</h2>
+                    <span id="system-status" class="status-badge">Loading...</span>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Overall Status</div>
+                    <div class="metric-value" id="system-status-text">Initializing...</div>
+                </div>
+                <div class="alert-list" id="active-alerts"></div>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Worker Performance</h2>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Request Volume (15m)</div>
+                        <div class="metric-value small" id="request-volume">-</div>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">P50 Latency</div>
+                            <div class="stat-value" id="p50-latency">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">P95 Latency</div>
+                            <div class="stat-value" id="p95-latency">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Error Rate</div>
+                            <div class="stat-value" id="error-rate">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Success Rate</div>
+                            <div class="stat-value" id="success-rate">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Cache Performance</h2>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Combined Hit Rate</div>
+                        <div class="metric-value small" id="cache-hit-rate">-</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="cache-hit-progress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Edge Hits</div>
+                            <div class="stat-value" id="edge-hits">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">KV Hits</div>
+                            <div class="stat-value" id="kv-hits">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">R2 Reads</div>
+                            <div class="stat-value" id="r2-reads">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">API Misses</div>
+                            <div class="stat-value" id="api-misses">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">External API Health</h2>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Google Books</div>
+                        <div class="stat-value" id="google-books-status">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">OpenLibrary</div>
+                        <div class="stat-value" id="openlibrary-status">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">ISBNdb</div>
+                        <div class="stat-value" id="isbndb-status">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Gemini AI</div>
+                        <div class="stat-value" id="gemini-status">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">WebSocket Stats</h2>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Active Connections</div>
+                        <div class="metric-value small" id="ws-connections">-</div>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Messages/min</div>
+                            <div class="stat-value" id="ws-messages">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Avg Duration</div>
+                            <div class="stat-value" id="ws-duration">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Cost Analysis</h2>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Estimated Daily Cost</div>
+                        <div class="metric-value small" id="daily-cost">-</div>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">KV Operations</div>
+                            <div class="stat-value" id="kv-cost">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">R2 Operations</div>
+                            <div class="stat-value" id="r2-cost">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">AI Requests</div>
+                            <div class="stat-value" id="ai-cost">-</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Monthly Est.</div>
+                            <div class="stat-value" id="monthly-cost">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="last-updated">
+            Last updated: <span id="last-updated">Never</span> | 
+            Auto-refresh: <span id="auto-refresh-status">Enabled (30s)</span>
+        </div>
+    </div>
+
+    <script>
+        let autoRefreshInterval = null;
+        let autoRefreshEnabled = true;
+
+        async function fetchDashboardData() {
+            const [health, metrics, cacheStats, providerHealth, wsStats, costs] = await Promise.all([
+                fetch('/api/health').then(r => r.json()),
+                fetch('/api/metrics').then(r => r.json()),
+                fetch('/api/cache-stats').then(r => r.json()),
+                fetch('/api/provider-health').then(r => r.json()),
+                fetch('/api/websocket-stats').then(r => r.json()),
+                fetch('/api/costs').then(r => r.json())
+            ]);
+            return { health, metrics, cacheStats, providerHealth, wsStats, costs };
+        }
+
+        function updateDashboard(data) {
+            const { health, metrics, cacheStats, providerHealth, wsStats, costs } = data;
+            
+            const statusBadge = document.getElementById('system-status');
+            const statusText = document.getElementById('system-status-text');
+            
+            statusBadge.textContent = health.status.toUpperCase();
+            statusBadge.className = \`status-badge status-\${health.status}\`;
+            statusText.textContent = health.message || 'All systems operational';
+
+            const alertsContainer = document.getElementById('active-alerts');
+            alertsContainer.innerHTML = '';
+            if (health.alerts && health.alerts.length > 0) {
+                health.alerts.forEach(alert => {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = \`alert-item \${alert.severity}\`;
+                    alertDiv.innerHTML = \`
+                        <div class="alert-message">\${alert.message}</div>
+                        <div class="alert-time">Since \${new Date(alert.timestamp).toLocaleTimeString()}</div>
+                    \`;
+                    alertsContainer.appendChild(alertDiv);
+                });
+            }
+
+            document.getElementById('request-volume').textContent = metrics.requestVolume?.toLocaleString() || '0';
+            document.getElementById('p50-latency').textContent = \`\${metrics.latency?.p50 || 0}ms\`;
+            document.getElementById('p95-latency').textContent = \`\${metrics.latency?.p95 || 0}ms\`;
+            document.getElementById('error-rate').textContent = \`\${metrics.errorRate?.toFixed(2) || 0}%\`;
+            document.getElementById('success-rate').textContent = \`\${metrics.successRate?.toFixed(2) || 0}%\`;
+
+            const hitRate = cacheStats.combinedHitRate || 0;
+            document.getElementById('cache-hit-rate').textContent = \`\${hitRate.toFixed(1)}%\`;
+            
+            const progressBar = document.getElementById('cache-hit-progress');
+            progressBar.style.width = \`\${hitRate}%\`;
+            progressBar.className = 'progress-fill';
+            if (hitRate < 75) progressBar.classList.add('critical');
+            else if (hitRate < 90) progressBar.classList.add('warning');
+
+            document.getElementById('edge-hits').textContent = cacheStats.edgeHits?.toLocaleString() || '0';
+            document.getElementById('kv-hits').textContent = cacheStats.kvHits?.toLocaleString() || '0';
+            document.getElementById('r2-reads').textContent = cacheStats.r2Reads?.toLocaleString() || '0';
+            document.getElementById('api-misses').textContent = cacheStats.apiMisses?.toLocaleString() || '0';
+
+            const providers = ['google-books', 'openlibrary', 'isbndb', 'gemini'];
+            providers.forEach(provider => {
+                const status = providerHealth[provider] || { status: 'unknown', latency: 0 };
+                const elem = document.getElementById(\`\${provider}-status\`);
+                const emoji = status.status === 'healthy' ? '✅' : 
+                              status.status === 'degraded' ? '⚠️' : '❌';
+                elem.textContent = \`\${emoji} \${status.latency || 0}ms\`;
+            });
+
+            document.getElementById('ws-connections').textContent = wsStats.activeConnections?.toLocaleString() || '0';
+            document.getElementById('ws-messages').textContent = wsStats.messagesPerMinute?.toLocaleString() || '0';
+            document.getElementById('ws-duration').textContent = \`\${wsStats.avgDuration || 0}s\`;
+
+            document.getElementById('daily-cost').textContent = costs.daily || '$0.00';
+            document.getElementById('kv-cost').textContent = costs.breakdown?.kv || '$0.00';
+            document.getElementById('r2-cost').textContent = costs.breakdown?.r2 || '$0.00';
+            document.getElementById('ai-cost').textContent = costs.breakdown?.ai || '$0.00';
+            document.getElementById('monthly-cost').textContent = costs.monthly || '$0.00';
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('dashboard-content').style.display = 'block';
+            document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+        }
+
+        function showError(message) {
+            const errorContainer = document.getElementById('error-container');
+            errorContainer.innerHTML = \`
+                <div class="error-message">
+                    <strong>Error:</strong> \${message}
+                </div>
+            \`;
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        async function refreshDashboard() {
+            try {
+                document.getElementById('error-container').innerHTML = '';
+                const data = await fetchDashboardData();
+                updateDashboard(data);
+            } catch (error) {
+                showError(error.message || 'Failed to fetch dashboard data');
+            }
+        }
+
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            const btn = document.getElementById('auto-refresh-btn');
+            const status = document.getElementById('auto-refresh-status');
+            
+            if (autoRefreshEnabled) {
+                btn.textContent = '⏸️ Pause Auto-Refresh';
+                status.textContent = 'Enabled (30s)';
+                startAutoRefresh();
+            } else {
+                btn.textContent = '▶️ Resume Auto-Refresh';
+                status.textContent = 'Paused';
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            }
+        }
+
+        function startAutoRefresh() {
+            if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+            autoRefreshInterval = setInterval(refreshDashboard, 30000);
+        }
+
+        refreshDashboard();
+        if (autoRefreshEnabled) startAutoRefresh();
+    </script>
+</body>
+</html>`;
+}

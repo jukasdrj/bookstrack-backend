@@ -1,0 +1,70 @@
+# ====================================================================================
+# Monitoring Dashboard Worker - Cloudflare Workers Configuration
+# ====================================================================================
+#
+# Separate worker for monitoring dashboard UI and metrics aggregation.
+# Provides real-time visibility into BooksTrack backend infrastructure.
+#
+# Features:
+# - Real-time health monitoring
+# - Cache performance analytics
+# - External API health checks
+# - Cost estimation
+# - WebSocket connection stats
+#
+# ====================================================================================
+
+name = "monitoring-dashboard-worker"
+main = "src/workers/monitoring-dashboard/index.js"
+compatibility_date = "2025-11-14"
+workers_dev = true
+compatibility_flags = [
+  "nodejs_compat"
+]
+
+# Custom domain route for monitoring dashboard
+routes = [
+  { pattern = "monitor.oooefam.net/*", zone_name = "oooefam.net" }
+]
+
+# Environment variables
+[vars]
+# API Worker URL for fetching metrics
+API_WORKER_URL = "https://api.oooefam.net"
+
+# Logging configuration
+LOG_LEVEL = "INFO"
+STRUCTURED_LOGGING = "true"
+
+# KV Namespace for caching dashboard data (optional)
+# Using same KV namespace as main worker for shared cache access
+[[kv_namespaces]]
+binding = "CACHE"
+id = "b9cade63b6db48fd80c109a013f38fdb"
+# remote = false  # Default: use local simulation
+# remote = true   # Uncomment to access production KV cache
+
+# Observability - Workers Logs & Traces
+[observability]
+enabled = true
+head_sampling_rate = 1.0
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1.0
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 1.0
+persist = true
+
+# Resource limits
+[limits]
+cpu_ms = 30000  # 30 seconds max (monitoring shouldn't need long)
+memory_mb = 128
+
+# Placement
+[placement]
+mode = "smart"
