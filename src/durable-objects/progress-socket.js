@@ -237,7 +237,15 @@ export class ProgressWebSocketDO extends DurableObject {
 
     // CRITICAL FIX: Schedule periodic token refresh check AFTER jobId initialization
     // This ensures all alarm logs show the correct jobId instead of [undefined]
-    await this.scheduleTokenRefreshCheck();
+    // Only schedule token refresh alarm if no job is pending (prevents alarm conflict)
+    const jobType = await this.storage.get("jobType");
+    if (!jobType) {
+      await this.scheduleTokenRefreshCheck();
+    } else {
+      console.log(
+        `[${this.jobId}] Job type '${jobType}' pending, skipping initial token refresh schedule`,
+      );
+    }
 
     // Setup event handlers
     this.webSocket.addEventListener("message", (event) => {
@@ -527,7 +535,13 @@ export class ProgressWebSocketDO extends DurableObject {
       console.log(
         `[${this.jobId}] Token expires in ${Math.floor(timeUntilExpiration / 60000)}min - refreshing automatically`,
       );
-      await this.autoRefreshToken();
+      const refreshed = await this.autoRefreshToken();
+      if (refreshed) {
+        // After refresh, restart the scheduling logic to use the new expiration.
+        // This avoids scheduling a redundant alarm based on the old expiration value.
+        await this.scheduleTokenRefreshCheck();
+        return;
+      }
     }
 
     // HIGH FIX: Calculate next check time (simplified to avoid negative timestamps)
@@ -556,7 +570,8 @@ export class ProgressWebSocketDO extends DurableObject {
     // Durable Objects support only ONE alarm - avoid overwriting job processing alarms
     const jobType = await this.storage.get("jobType");
     if (jobType) {
-      // Job alarms are scheduled for 2s. Schedule token check 5s out to ensure job fires first.
+      // Job alarms are scheduled for 2s by scheduleCSVProcessing/scheduleBookshelfScan.
+      // Schedule token check 5s out to ensure job alarm fires first.
       const jobAlarmTime = now + 5000;
       nextCheckTime = Math.max(nextCheckTime, jobAlarmTime);
       console.log(
@@ -625,7 +640,7 @@ export class ProgressWebSocketDO extends DurableObject {
       // HIGH FIX: Store old token for 5-minute grace period (300 seconds)
       // This allows clients to reconnect with the old token during auto-refresh transitions
       if (oldToken) {
-        await this.storage.put(`oldAuthToken:${oldToken}`, newExpiration, {
+        await this.storage.put(`oldAuthToken:${oldToken}`, true, {
           expirationTtl: 300,
         });
         console.log(
@@ -1325,7 +1340,7 @@ export class ProgressWebSocketDO extends DurableObject {
    * Runs outside Worker CPU time limits (5min for HTTP, 15min for alarms)
    *
    * Handles four types of alarms:
-   * 1. Token Refresh Check - Periodic alarm scheduled by scheduleTokenRefreshCheck()
+   * 1. Token Refresh Check - Dynamic alarm scheduled by scheduleTokenRefreshCheck() based on token expiration time
    * 2. CSV Import Processing - jobType='csv-import', scheduled 2s after upload
    * 3. Bookshelf Scan Processing - jobType='bookshelf-scan', scheduled 2s after upload
    * 4. State Cleanup - No jobType, scheduled 24h after job completion
@@ -1371,6 +1386,15 @@ export class ProgressWebSocketDO extends DurableObject {
       await this.storage.delete("jobState");
       await this.storage.delete("authToken");
       await this.storage.delete("authTokenExpiration");
+
+      // Delete all oldAuthToken:* keys (created during auto-refresh)
+      const oldTokenKeys = await this.storage.list({ prefix: "oldAuthToken:" });
+      for (const key of oldTokenKeys.keys()) {
+        await this.storage.delete(key);
+      }
+      if (oldTokenKeys.size > 0) {
+        console.log(`[${logId}] Cleaned up ${oldTokenKeys.size} old token(s)`);
+      }
     }
   }
 
