@@ -114,9 +114,10 @@ See [API_CONTRACT.md](API_CONTRACT.md) for complete reference.
 - AI scanning (`/api/batch-scan`): 5 requests/minute
 
 **Response headers:**
-- `X-RateLimit-Limit`: Maximum requests allowed
-- `X-RateLimit-Remaining`: Requests remaining in window
-- `Retry-After`: Seconds until limit resets (429 status only)
+- `X-RateLimit-Limit`: Maximum requests allowed in the window
+- `X-RateLimit-Remaining`: Requests remaining in the current window
+- `X-RateLimit-Reset`: Unix timestamp when the rate limit window resets
+- `Retry-After`: Seconds to wait before making another request (sent with 429 status only)
 
 See [API_CONTRACT.md § 3.2](API_CONTRACT.md#32-rate-limiting) for complete rules.
 
@@ -127,7 +128,7 @@ See [API_CONTRACT.md § 3.2](API_CONTRACT.md#32-rate-limiting) for complete rule
 **For API questions:**
 → Email: api-support@oooefam.net
 → Slack: #bookstrack-api
-→ GitHub Issues: https://github.com/jukasdrj/bookstrack-backend/issues
+→ GitHub Issues: https://github.com/bookstrack/backend/issues
 
 **For integration issues (iOS/Flutter):**
 → See [FRONTEND_HANDOFF.md](FRONTEND_HANDOFF.md#support--debugging)

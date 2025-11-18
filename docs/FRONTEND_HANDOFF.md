@@ -261,8 +261,8 @@ ws.onmessage = (event) => {
     "timestamp": "2025-11-17T12:00:00Z"
   },
   "error": {
-    "code": "INVALID_ISBN",
     "message": "ISBN must be 10 or 13 digits",
+    "code": "INVALID_ISBN",
     "details": null
   }
 }
