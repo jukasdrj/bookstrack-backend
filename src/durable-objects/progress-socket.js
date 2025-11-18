@@ -590,22 +590,33 @@ export class ProgressWebSocketDO extends DurableObject {
     // SECURITY FIX: Blacklist old tokens created during auto-refresh
     // Prevents leaked old tokens from reconnecting after job completion
     const oldTokenKeys = await this.storage.list({ prefix: "oldAuthToken:" });
-    for (const key of oldTokenKeys.keys()) {
-      const oldTokenValue = key.replace("oldAuthToken:", "");
-      await this.storage.put(
-        `blacklistedToken:${oldTokenValue}`,
-        {
-          invalidatedAt: Date.now(),
-          reason: "Job completed or failed",
-          jobId: this.jobId,
-        },
-        { expirationTtl: BLACKLIST_TTL_SECONDS },
-      );
-    }
-
     if (oldTokenKeys.size > 0) {
+      const now = Date.now();
+      const blacklistPuts = {};
+      const oldTokenKeysToDelete = [];
+
+      for (const key of oldTokenKeys.keys()) {
+        if (key.startsWith("oldAuthToken:")) {
+          const oldTokenValue = key.slice("oldAuthToken:".length);
+          blacklistPuts[`blacklistedToken:${oldTokenValue}`] = {
+            invalidatedAt: now,
+            reason: "Job completed or failed",
+            jobId: this.jobId,
+          };
+          oldTokenKeysToDelete.push(key);
+        } else {
+          console.warn(`[${this.jobId || "unknown"}] Unexpected old token key format: ${key}`);
+        }
+      }
+
+      // Batch blacklist old tokens (single storage.put call)
+      await this.storage.put(blacklistPuts, { expirationTtl: BLACKLIST_TTL_SECONDS });
+
+      // Delete old token keys from storage to prevent bloat
+      await this.storage.delete(oldTokenKeysToDelete);
+
       console.log(
-        `[${this.jobId || "unknown"}] Blacklisted ${oldTokenKeys.size} old token(s)`,
+        `[${this.jobId || "unknown"}] Blacklisted and deleted ${oldTokenKeysToDelete.length} old token(s)`,
       );
     }
 
