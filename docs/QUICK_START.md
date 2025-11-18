@@ -2,11 +2,10 @@
 
 ## First Time Here?
 
-**Start with these three files:**
+**Start with these two files:**
 
-1. **[API_README.md](API_README.md)** - Canonical API contracts and integration patterns
-2. **[FRONTEND_HANDOFF.md](FRONTEND_HANDOFF.md)** - Integration guide for iOS and Flutter teams
-3. **[../README.md](../README.md)** - Repository overview and features
+1. **[API_CONTRACT.md](./API_CONTRACT.md)** - The single source of truth for the API.
+2. **[../README.md](../README.md)** - Repository overview and features.
 
 ---
 
@@ -15,7 +14,7 @@
 ### 🔍 I need to...
 
 **Find API documentation**
-→ [docs/API_README.md](API_README.md)
+→ [API_CONTRACT.md](./API_CONTRACT.md)
 
 **Deploy to production**
 → [docs/deployment/DEPLOYMENT.md](deployment/DEPLOYMENT.md)
@@ -33,10 +32,10 @@
 → [docs/guides/VERIFICATION.md](guides/VERIFICATION.md)
 
 **Integrate as iOS/Flutter team**
-→ [FRONTEND_HANDOFF.md](FRONTEND_HANDOFF.md)
+→ [V2_MIGRATION_GUIDE.md](./V2_MIGRATION_GUIDE.md)
 
 **Review architecture decisions**
-→ [../MONOLITH_ARCHITECTURE.md](../MONOLITH_ARCHITECTURE.md)
+→ [../.claude/CLAUDE.md](../.claude/CLAUDE.md)
 
 **See implementation details**
 → [plans/](plans/) folder
@@ -50,13 +49,10 @@
 
 ```
 docs/
-├── API_README.md              ⭐ START HERE (API contracts)
-├── FRONTEND_HANDOFF.md        ⭐ START HERE (Frontend integration)
+├── API_CONTRACT.md            ⭐ START HERE (API contracts)
+├── V2_MIGRATION_GUIDE.md      ⭐ START HERE (Frontend integration)
 ├── deployment/                🚀 Deployment guides
 ├── guides/                     📖 Feature documentation
-├── plans/                      📋 Implementation plans
-├── workflows/                  🔄 Process diagrams
-├── robit/                      🤖 AI automation setup
 └── archives/                   📦 Historical documentation
 ```
 
@@ -93,26 +89,22 @@ npm run tail                   # Stream production logs
 - `POST /api/scan-bookshelf?jobId={uuid}` (AI scanning)
 
 **Real-time Updates:**
-- `GET /ws/progress?jobId={uuid}` (WebSocket)
+- `wss://api.oooefam.net/ws/progress?jobId={jobId}&token={token}` (WebSocket)
 
 **Health:**
 - `GET /health` (API status)
 
-See [API_README.md](API_README.md) for complete reference.
+See [API_CONTRACT.md](API_CONTRACT.md) for complete reference.
 
 ---
 
 ## Rate Limiting
 
-**Limit:** 10 requests per 60 seconds per IP
+**Global Limits:**
+- **1000 requests/hour** per IP address
+- **Burst:** 50 requests/minute
 
-**Protected endpoints:**
-- `/api/token/refresh`
-- `/api/scan-bookshelf`
-- `/api/import/csv-gemini`
-- `/v1/enrichment/batch`
-
-**Response header:** `Retry-After: {seconds}`
+**Response header:** `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
 
 ---
 
@@ -122,7 +114,7 @@ See [API_README.md](API_README.md) for complete reference.
 → Open GitHub issue in `bookstrack-backend` repo
 
 **For integration issues (iOS/Flutter):**
-→ See [FRONTEND_HANDOFF.md](FRONTEND_HANDOFF.md#support--debugging)
+→ See [V2_MIGRATION_GUIDE.md](./V2_MIGRATION_GUIDE.md)
 
 **For deployment issues:**
 → See [docs/deployment/DEPLOYMENT.md](deployment/DEPLOYMENT.md)
@@ -132,12 +124,5 @@ See [API_README.md](API_README.md) for complete reference.
 
 ---
 
-## Related Projects
-
-- **iOS App:** https://github.com/jukasdrj/books-tracker-v1
-- **Backend:** https://github.com/jukasdrj/bookstrack-backend
-
----
-
-**Last Updated:** November 13, 2025
-**Next:** Read [API_README.md](API_README.md) for canonical contracts
+**Last Updated:** November 17, 2025
+**Next:** Read [API_CONTRACT.md](API_CONTRACT.md) for canonical contracts

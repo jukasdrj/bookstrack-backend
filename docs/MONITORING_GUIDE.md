@@ -68,14 +68,15 @@ Expected format (v2.0 canonical):
 ```json
 {
   "data": {
-    "isbn": "9780439708180",
-    "title": "Harry Potter and the Sorcerer's Stone",
-    ...
+    "works": [...],
+    "editions": [...],
+    "authors": [...]
   },
   "metadata": {
-    "source": "google_books",
-    "cached": true,
-    "timestamp": "2025-11-16T10:00:00Z"
+    "timestamp": "2025-11-15T20:00:00.000Z",
+    "processingTime": 145,
+    "provider": "google-books",
+    "cached": false
   }
 }
 ```

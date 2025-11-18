@@ -337,10 +337,18 @@ func attemptReconnection() {
 ```json
 {
   "type": "reconnected",
+  "jobId": "uuid-12345",
+  "pipeline": "csv_import",
+  "timestamp": 1700005000000,
+  "version": "1.0.0",
   "payload": {
+    "type": "reconnected",
     "progress": 0.65,
+    "status": "processing",
     "processedCount": 65,
-    "totalCount": 100
+    "totalCount": 100,
+    "lastUpdate": 1700004950000,
+    "message": "Reconnected successfully - resuming job progress"
   }
 }
 ```
@@ -594,8 +602,7 @@ Automatically rollback if:
 
 ### 8.1 Documentation
 
-- **[API_CONTRACT.md](./API_CONTRACT.md)** - Complete API specification
-- **[WEBSOCKET_AUDIT_67.md](./WEBSOCKET_AUDIT_67.md)** - WebSocket implementation details
+- **[API_CONTRACT.md](./API_CONTRACT.md)** - Complete API specification, including WebSocket implementation
 - **[MONITORING_GUIDE.md](./MONITORING_GUIDE.md)** - Dashboard and alerts
 
 ### 8.2 Contact
