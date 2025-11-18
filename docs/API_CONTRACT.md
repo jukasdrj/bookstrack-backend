@@ -1629,7 +1629,7 @@ console.log(`Gender: ${authors[0].gender}, Cultural Region: ${authors[0].cultura
 
 ```typescript
 // 1. Start AI scan job
-const initResponse = await fetch('https://api.oooefam.net/api/scan-bookshelf/batch', {
+const initResponse = await fetch('https://api.oooefam.net/api/batch-scan', {
   method: 'POST',
   body: formData
 });
