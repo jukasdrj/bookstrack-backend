@@ -121,12 +121,12 @@ This document is the **single source of truth** for the BooksTrack API. All fron
 - Batch enrichment (`/api/enrichment/start`): **10 requests/minute** per IP
 - **AI batch scanning (`/api/batch-scan`)**: **5 requests/minute** per IP
   - **Important:** Limit applies per batch request, not per photo
-  - Example: 10 photos in 1 batch = 1 request counted
-  - Each batch can contain up to 50 photos
+  - Example: 4 photos in 1 batch = 1 request counted
+  - Each batch can contain up to 5 photos
 
 **Batch Scan Rate Limit FAQ:**
 
-Q: If I send 20 photos in a batch, does that count as 20 requests?
+Q: If I send 5 photos in a batch, does that count as 5 requests?
 A: No, it counts as **1 request** (per-batch, not per-photo).
 
 Q: What happens if I exceed the 5 requests/minute limit?

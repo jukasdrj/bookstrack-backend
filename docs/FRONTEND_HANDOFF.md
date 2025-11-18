@@ -310,7 +310,7 @@ enum BatchScanError: Error {
        showAlert("Rate limit reached. Please wait \(minutes) minute(s) before submitting another batch.")
    }
    ```
-4. **Batch Consolidation**: Combine photos into fewer batches (up to 50 photos per batch) to stay under limits
+4. **Batch Consolidation**: Combine photos into fewer batches (up to 5 photos per batch) to stay under limits
 
 #### **Rate Limit Headers**
 
