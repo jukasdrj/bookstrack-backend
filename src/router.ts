@@ -87,6 +87,12 @@ app.get('/ws/progress', async (c) => {
     )
   }
 
+  // Note: Token validation happens in the Durable Object (progress-socket.js:172-175)
+  // This maintains parity with manual router and follows Workers architecture:
+  // - Router: validates required params and routes to correct DO
+  // - DO: handles authentication, session management, and business logic
+  // See API_CONTRACT.md § 7.5 for WebSocket authentication flow
+
   // Check if this is a WebSocket upgrade request
   const upgradeHeader = c.req.header('upgrade')
   if (upgradeHeader !== 'websocket') {
@@ -144,7 +150,7 @@ app.onError((err, c) => {
     error: {
       code: 'INTERNAL_ERROR',
       message: 'An unexpected error occurred',
-      details: err.message
+      details: c.env.LOG_LEVEL === 'DEBUG' ? err.message : undefined
     }
   }, 500)
 })

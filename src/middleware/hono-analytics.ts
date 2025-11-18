@@ -25,16 +25,24 @@ export const analyticsMiddleware = (): MiddlewareHandler<{ Bindings: Env }> => {
     const responseTime = Date.now() - startTime
     c.res.headers.set('X-Response-Time', `${responseTime}ms`)
 
-    // Log performance metrics
-    if (c.env.ENABLE_PERFORMANCE_LOGGING === 'true') {
-      console.log(JSON.stringify({
-        router: 'hono',
-        method: c.req.method,
-        path: c.req.path,
-        status: c.res.status,
-        responseTime,
-        timestamp: new Date().toISOString()
-      }))
+    // Log performance metrics to Analytics Engine (async, non-blocking)
+    // Use 10% sampling to reduce overhead in production
+    if (c.env.ENABLE_PERFORMANCE_LOGGING === 'true' && Math.random() < 0.1) {
+      c.executionCtx.waitUntil(
+        c.env.PERFORMANCE_ANALYTICS?.writeDataPoint({
+          blobs: [
+            'hono_router',
+            c.req.method,
+            c.req.path,
+            c.res.status.toString(),
+            `${responseTime}ms`
+          ],
+          doubles: [responseTime],
+          indexes: [new Date().toISOString()]
+        }).catch(err => {
+          console.error('[Hono Analytics] Failed to log performance:', err)
+        })
+      )
     }
   }
 }
