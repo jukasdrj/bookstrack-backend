@@ -2,6 +2,7 @@ import { ProgressWebSocketDO } from "./durable-objects/progress-socket.js";
 import { RateLimiterDO } from "./durable-objects/rate-limiter.js";
 import { WebSocketConnectionDO } from "./durable-objects/websocket-connection.js";
 import { JobStateManagerDO } from "./durable-objects/job-state-manager.js";
+import honoRouter from "./router/hono-router.ts";
 import * as externalApis from "./services/external-apis.ts";
 import * as enrichment from "./services/enrichment.ts";
 import * as aiScanner from "./services/ai-scanner.js";
@@ -45,7 +46,6 @@ import {
   trackRequestMetrics,
   addAnalyticsHeaders,
 } from "./utils/analytics.js";
-import honoRouter from "./router.ts";
 
 // Export the Durable Object classes for Cloudflare Workers runtime
 export {
@@ -359,6 +359,18 @@ export default {
       // ========================================================================
       // AI Scanner Endpoint
       // ========================================================================
+
+      // POST /api/batch-scan - Batch AI bookshelf scanner with WebSocket progress (alias route)
+      if (
+        url.pathname === "/api/batch-scan" &&
+        request.method === "POST"
+      ) {
+        // Rate limiting: Prevent denial-of-wallet attacks on AI batch endpoint
+        const rateLimitResponse = await checkRateLimit(request, env);
+        if (rateLimitResponse) return rateLimitResponse;
+
+        return handleBatchScan(request, env, ctx);
+      }
 
       // POST /api/scan-bookshelf/batch - Batch AI bookshelf scanner with WebSocket progress
       if (
