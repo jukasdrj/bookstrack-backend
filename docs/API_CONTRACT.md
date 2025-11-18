@@ -1572,7 +1572,7 @@ queued → processing → complete | error
 **Bug Reports:**
 - Email: `api-support@oooefam.net`
 - Slack: `#bookstrack-api` channel
-- GitHub: https://github.com/bookstrack/backend/issues
+- GitHub: https://github.com/jukasdrj/bookstrack-backend/issues
 
 **Include:**
 - Endpoint URL

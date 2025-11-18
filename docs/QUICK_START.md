@@ -128,7 +128,7 @@ See [API_CONTRACT.md § 3.2](API_CONTRACT.md#32-rate-limiting) for complete rule
 **For API questions:**
 → Email: api-support@oooefam.net
 → Slack: #bookstrack-api
-→ GitHub Issues: https://github.com/bookstrack/backend/issues
+→ GitHub Issues: https://github.com/jukasdrj/bookstrack-backend/issues
 
 **For integration issues (iOS/Flutter):**
 → See [FRONTEND_HANDOFF.md](FRONTEND_HANDOFF.md#support--debugging)
