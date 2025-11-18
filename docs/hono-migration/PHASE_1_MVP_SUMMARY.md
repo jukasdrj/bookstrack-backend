@@ -165,7 +165,7 @@ Added:
 Modified:
   src/index.js (added lines 48, 58-74)
   wrangler.toml (added lines 86-91)
-  package.json (added hono@^4.6.14)
+  package.json (added hono@^4.10.6)
 ```
 
 **Total Lines Added:** ~800 (TypeScript + tests)

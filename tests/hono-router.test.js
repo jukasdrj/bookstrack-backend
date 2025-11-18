@@ -8,7 +8,7 @@
  * 4. Both routers produce identical business logic results
  */
 
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import worker from '../src/index.js'
 
 // Mock environment for testing
@@ -228,14 +228,14 @@ describe('Hono Router - WebSocket Routing', () => {
     expect(data.error.code).toBe('MISSING_PARAM')
   })
 
-  it('should return error for non-WebSocket requests to /ws/progress', async () => {
+  it('should forward non-WebSocket requests to Durable Object', async () => {
     const request = new Request('http://localhost/ws/progress?jobId=test-123')
-    // No Upgrade header
+    // No Upgrade header - DO will handle the response
     const response = await worker.fetch(request, env, {})
-    const data = await response.json()
 
-    expect(response.status).toBe(426)
-    expect(data.error.code).toBe('BAD_REQUEST')
+    // Note: Behavior parity with manual router - no upgrade validation at router level
+    // The Durable Object (mocked to return 101) handles the actual WebSocket logic
+    expect(response.status).toBe(101)
   })
 })
 

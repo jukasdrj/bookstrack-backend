@@ -17,7 +17,6 @@ import type { Env } from './types/env'
 import { handleSearchISBN } from './handlers/v1/search-isbn'
 import { handleMetricsRequest } from './handlers/metrics-handler'
 import { getProgressDOStub } from './utils/durable-object-helpers'
-import { errorResponse } from './utils/response-builder'
 import { analyticsMiddleware } from './middleware/hono-analytics'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -54,12 +53,12 @@ app.get('/v1/search/isbn', async (c) => {
   const isbn = c.req.query('isbn')
 
   if (!isbn) {
-    return errorResponse(
-      'INVALID_ISBN',
-      'ISBN query parameter is required',
-      400,
-      null
-    )
+    return c.json({
+      error: {
+        code: 'INVALID_ISBN',
+        message: 'ISBN query parameter is required'
+      }
+    }, 400)
   }
 
   return await handleSearchISBN(isbn, c.env, c.req.raw)
@@ -69,7 +68,7 @@ app.get('/v1/search/isbn', async (c) => {
 // MVP Route 3: Metrics (Analytics Integration Test)
 // ============================================================================
 app.get('/metrics', async (c) => {
-  return await handleMetricsRequest(c.req.raw, c.env)
+  return await handleMetricsRequest(c.req.raw, c.env, c.executionCtx)
 })
 
 // ============================================================================
@@ -79,30 +78,23 @@ app.get('/ws/progress', async (c) => {
   const jobId = c.req.query('jobId')
 
   if (!jobId) {
-    return errorResponse(
-      'MISSING_PARAM',
-      'Missing jobId parameter',
-      400,
-      null
-    )
+    return c.json({
+      error: {
+        code: 'MISSING_PARAM',
+        message: 'Missing jobId parameter'
+      }
+    }, 400)
   }
 
   // Note: Token validation happens in the Durable Object (progress-socket.js:172-175)
   // This maintains parity with manual router and follows Workers architecture:
   // - Router: validates required params and routes to correct DO
   // - DO: handles authentication, session management, and business logic
+  //
+  // IMPORTANT: WebSocket upgrade validation is NOT performed here to maintain
+  // behavioral parity with the manual router (src/index.js:94-109).
+  // The Durable Object will handle upgrade validation if needed.
   // See API_CONTRACT.md § 7.5 for WebSocket authentication flow
-
-  // Check if this is a WebSocket upgrade request
-  const upgradeHeader = c.req.header('upgrade')
-  if (upgradeHeader !== 'websocket') {
-    return errorResponse(
-      'BAD_REQUEST',
-      'Expected WebSocket upgrade',
-      426,
-      null
-    )
-  }
 
   // Get Durable Object instance for this specific jobId
   const doStub = getProgressDOStub(jobId, c.env)

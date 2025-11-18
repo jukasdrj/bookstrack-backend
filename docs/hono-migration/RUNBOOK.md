@@ -47,7 +47,7 @@
 - [ ] **Dependencies Installed:**
   ```bash
   npm ls hono
-  # Expected: hono@^4.6.14
+  # Expected: hono@^4.10.6
   ```
 
 - [ ] **TypeScript Compilation:**

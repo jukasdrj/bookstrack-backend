@@ -66,17 +66,17 @@ export default {
     // This allows A/B testing and gradual migration with zero production risk
     // Rollback: Set ENABLE_HONO_ROUTER=false (<60 seconds)
     // ========================================================================
-    const useHono = env.ENABLE_HONO_ROUTER === 'true'
+    const useHono = env.ENABLE_HONO_ROUTER === 'true';
 
     if (useHono) {
-      console.log('[Router] Using Hono router (feature flag enabled)')
-      return honoRouter.fetch(request, env, ctx)
+      console.log('[Router] Using Hono router (feature flag enabled)');
+      return honoRouter.fetch(request, env, ctx);
     }
 
     // ========================================================================
     // Manual Router (Legacy - Default)
     // ========================================================================
-    console.log('[Router] Using manual router (feature flag disabled)')
+    console.log('[Router] Using manual router (feature flag disabled)');
     const startTime = Date.now();
     const url = new URL(request.url);
     let response;
