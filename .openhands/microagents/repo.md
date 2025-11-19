@@ -74,7 +74,7 @@ npm run deploy     # Deploy to production
 │   ├── utils/                # Utility function tests
 │   └── assets/               # Test images and fixtures
 ├── docs/                     # Active documentation
-│   ├── API_README.md         # **START HERE** - API contracts
+│   ├── API_CONTRACT.md       # **START HERE** - API contracts
 │   ├── deployment/           # Deployment guides, monitoring
 │   ├── guides/               # Feature implementation guides
 │   ├── workflows/            # Workflow diagrams
